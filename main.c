@@ -818,11 +818,8 @@ int main(void)
     bool erase_bonds;
     uint32_t last_tick = 0;
     uint32_t next_report = 0;
-    hw_dbg_led_off();
-
+    
     hw_en_psu(true);
-
-    SEGGER_RTT_WriteString(0, "Debug started\n");
 
     // Initialize.
     log_init();
@@ -844,6 +841,7 @@ int main(void)
     hw_init();
 
     // configure watchdog timer
+    
     nrf_drv_wdt_config_t config = NRF_DRV_WDT_DEAFULT_CONFIG;
     err_code = nrf_drv_wdt_init(&config, wdt_event_handler);
     APP_ERROR_CHECK(err_code);
@@ -852,6 +850,8 @@ int main(void)
 #ifndef DEBUG
     nrf_drv_wdt_enable();
 #endif
+
+    // TODO: printf messages block the device if not connected to RTT
 
     advertising_start();
 
@@ -863,7 +863,7 @@ int main(void)
         uint32_t tick = hw_get_tick();
         if (tick != last_tick) {
             last_tick = tick;
-            //hw_dbg_led_toggle();
+            
             #ifndef DEBUG
             nrf_drv_wdt_channel_feed(m_channel_id); // service watchdog
             #endif
@@ -881,6 +881,7 @@ int main(void)
 
             // check the power button
     #ifndef DEBUG        // does not work in debug where the power button is constantly on
+          
             static uint32_t btn_down_tick = 0;
             if (hw_get_pwr_btn()) {
 
@@ -898,7 +899,7 @@ int main(void)
             else {
                 btn_down_tick = 0;  // button not pressed
                 //hw_set_led(2,0);
-            }
+            } 
     #endif
 
             // check for end of battery

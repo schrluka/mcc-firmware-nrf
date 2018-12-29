@@ -86,6 +86,8 @@ void l2_init()
 {
     ref_speed = V_MIN;
     pos = 0;
+    n_ramps = 0;
+    n_tasks = 0;
 
     // schedule initial acceleration
     l2_sched_speed_ramp(60, 0, 30);    // 96mm/s is 30km/h, accelerate over next 30cm
@@ -264,7 +266,7 @@ int l2_sched_pos_task (const struct p_task *t)
 // @return			0 on success, other values if an error is found
 int l2_sched_speed_ramp (int speed, int start_pos, int dist)
 {
-	if (speed > V_MAX) {
+    if (speed > V_MAX) {
         printf("speed to high\n");
 		return 1;
     }
@@ -274,7 +276,7 @@ int l2_sched_speed_ramp (int speed, int start_pos, int dist)
         speed = V_MIN;
     }
 
-	if (n_ramps >= N_RAMPS) {
+    if (n_ramps >= N_RAMPS) {
         printf("no entry left to schedule speed ramp\n");
         return 2;
 	}
@@ -302,7 +304,7 @@ int l2_sched_speed_ramp (int speed, int start_pos, int dist)
             ramps[i+1] = ramps[i];
         }
 	}
-    printf("inserting ramp at %d, s_speed: %d\n", ind, (int)s_speed);
+    //printf("inserting ramp at %d, s_speed: %d\n", ind, (int)s_speed);
     ramps[ind].delta_v = speed - s_speed;
     //printf("delta_v: %d\n", (int)(ramps[ind].delta_v));
 
@@ -330,7 +332,7 @@ int l2_sched_speed_ramp (int speed, int start_pos, int dist)
 
 	n_ramps++;  // we have one more ramp scheduled now
 
-	printf("ramp %d: dv: %d, pos: %d\n", ind, (int)ramps[ind].delta_v, (int)ramps[ind].start_pos);
+	//printf("ramp %d: dv: %d, pos: %d\n", ind, (int)ramps[ind].delta_v, (int)ramps[ind].start_pos);
 	return 0;
 }
 
@@ -349,6 +351,7 @@ void set_speed(unsigned int s)
     emf /= (10*F_EMF_CTRL*cm_per_lsb);
     l1_set_emf_ref(emf);
 }
+
 
 // returns the measured vehicle speed in mm/s
 int32_t l2_get_speed()
