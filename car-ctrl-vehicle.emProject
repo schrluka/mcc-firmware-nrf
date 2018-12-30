@@ -49,7 +49,9 @@
     <file file_name="model_car_ble_service.c" />
     <file file_name="nuts_bolts.c" />
     <file file_name="printf_retarget.c" />
-    <file file_name="user_config.c" />
+    <file file_name="user_config.c">
+      <configuration Name="Debug" build_exclude_from_build="Yes" />
+    </file>
     <folder Name="nRF_Segger_RTT">
       <file file_name="sdk/external/segger_rtt/SEGGER_RTT.c" />
       <file file_name="sdk/external/segger_rtt/SEGGER_RTT_printf.c" />
@@ -119,6 +121,9 @@
       <file file_name="sdk/external/fprintf/nrf_fprintf_format.c" />
       <file file_name="sdk/components/libraries/experimental_section_vars/nrf_section_iter.c" />
       <file file_name="sdk/components/libraries/balloc/nrf_balloc.c" />
+      <file file_name="sdk/components/libraries/fds/fds.c" />
+      <file file_name="sdk/components/libraries/crc16/crc16.c" />
+      <file file_name="sdk/components/libraries/fstorage/nrf_fstorage_sd.c" />
     </folder>
     <folder Name="nRF-Log">
       <file file_name="sdk/components/libraries/log/src/nrf_log_backend_rtt.c" />
@@ -140,6 +145,7 @@
     <file file_name="main.h" />
     <file file_name="model_car_ble_service.h" />
     <file file_name="nuts_bolts.h" />
+    <file file_name="config/sdk_config.h" />
   </project>
   <configuration
     Name="Debug"

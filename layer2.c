@@ -18,8 +18,11 @@
 #include "lococo.h"
 #include "hw.h"
 #include "main.h"
+#include "model_car_ble_service.h"
 // nordic bsp/lib
 #include "app_timer.h"
+#include "nrf_log.h"
+
 
 
 /**********************************************************************************************
@@ -51,12 +54,14 @@ static struct p_task p_tasks[N_TASKS];
 // number of scheduled tasks
 static int n_tasks = 0;
 
-// gain factor of position estimation in cm per accu LSB divided by 2^24
-// max allowed value is 16 bits (32767)
-static int cm_per_lsb = 1100;
+// gain factor of position estimation in cm per accu LSB 
+static float cm_per_lsb = 65.5651e-6F; // empirical, needs to be updated
 
 // current reference speed in mm/s
-static int ref_speed = 0;
+static volatile int ref_speed = 0;
+
+// allowed top speed in mm/s
+static uint16_t v_max = 255;
 
 // current vehicle position in cm
 static int32_t pos = 0;
@@ -92,7 +97,7 @@ void l2_init()
     // schedule initial acceleration
     l2_sched_speed_ramp(60, 0, 30);    // 96mm/s is 30km/h, accelerate over next 30cm
 
-    //printf("init ramp: dv:%d, sign:%d, dt:%d, v:%d\n", (int)ramps[0].delta_v, (int)ramps[0].sign, (int)ramps[0].delta_time, (int)ramps[0].v);
+    NRF_LOG_INFO("init ramp: dv:%d, sign:%d, dt:%d, v:%d", (int)ramps[0].delta_v, (int)ramps[0].sign, (int)ramps[0].delta_time, (int)ramps[0].v);
     lpf1Init(&u_bat_flt, F_EMF_CTRL, 2000000);  // 3rd param is time const of PT1 low pass filter in us
     u_bat_flt.y = 4000; // init high battery voltage to prevent battery empty shutdown during filter settling
 
@@ -111,12 +116,12 @@ void l2_poll(void *p_context)
 {
     static int log_cnt = 0;
     // update our position from the integrated back emf voltage
-    uint64_t accu = l1_get_emf_pos();
-    accu *= cm_per_lsb; // apply gain factor
-    pos = accu >> 24;   // divide as the gain in cm per lsb is very low
+    float f_pos = l1_get_emf_pos() * cm_per_lsb;
+    pos = (int32_t)f_pos;  
 
-    if (!execute_l2)
+    if (!execute_l2) {
         return;     // nothing to do right now
+    }
     execute_l2 = false; // clear flag, we are working now, can be set again by L1 interrupt soon
 
     // change ref speed according to position
@@ -128,8 +133,10 @@ void l2_poll(void *p_context)
                 // this ramp is done, remove it from the array
                 n_ramps--;
                 for (int i=0; i<n_ramps; i++)
+                {
                     ramps[i] = ramps[i+1];
-                printf("ramp done, %d remaining\n",n_ramps);
+                }
+                NRF_LOG_INFO("ramp done, %d remaining",n_ramps);
             }
             log_cnt++;
             if (log_cnt == F_EMF_CTRL/2) {
@@ -175,14 +182,10 @@ int32_t l2_get_pos()
 int64_t l2_set_pos(int p)
 {
     // convert position in cm to emf accu lsb, inverse operation to what we do during poll function above
-    uint64_t accu = p;
-    accu <<= 24;
-    accu = accu / cm_per_lsb; // apply gain factor
-    if (accu > 0xFFFFFFFF)
-        accu = 0xFFFFFFFF;  // limit value to 32 bits
+    float accu = p / cm_per_lsb; // apply gain factor
+   
     uint64_t delta_emf = accu - l1_get_emf_pos();
     l1_set_emf_pos(accu);
-
 
     int delta = p - pos;    // change in absolute position
 
@@ -222,7 +225,7 @@ void l2_update_pos_est (const struct lococo_tag* tag, int cm_delta)
     float gain = ((float)cm_delta) / tag->delta_pos;    // delta pos is in back emf accu LSBs
     int new_cm_per_lsb = (int)(gain * (1<<24));
 
-    printf("new pos const: %d\n", new_cm_per_lsb);
+    NRF_LOG_INFO("new pos const: %d", new_cm_per_lsb);
     // TODO: update estimate with low pass filter and potentially save result
 }
 
@@ -233,14 +236,14 @@ void l2_update_pos_est (const struct lococo_tag* tag, int cm_delta)
 int l2_sched_pos_task (const struct p_task *t)
 {
     if (n_tasks >= N_TASKS) {
-        printf("can't schedule task: no struct left\n");
+        NRF_LOG_INFO("can't schedule task: no struct left");
         return 1;
     }
     if (t->stop <= t->start) {
-        printf("task stop before start\n");
+        NRF_LOG_INFO("task stop before start");
         return 2;
     }
-    // keep tasks ordered ascending by position
+    // keep tasks ordered, ascending by position
     int ind = 0;
     for (int i=n_tasks-1; i>=0; i--) {
         if (p_tasks[i].start < t->start) {
@@ -252,7 +255,7 @@ int l2_sched_pos_task (const struct p_task *t)
             p_tasks[i+1] = p_tasks[i];
         }
     }
-    //printf("adding task at index %d\n",ind);
+    //NRF_LOG_INFO("adding task at index %d\n",ind);
     p_tasks[ind] = *t;
     n_tasks++;
     return 0;
@@ -266,10 +269,11 @@ int l2_sched_pos_task (const struct p_task *t)
 // @return			0 on success, other values if an error is found
 int l2_sched_speed_ramp (int speed, int start_pos, int dist)
 {
+    /* TODO: graceful handling
     if (speed > V_MAX) {
-        printf("speed to high\n");
-		return 1;
-    }
+        NRF_LOG_ERROR("speed to high\n");
+	return 1;
+    } */
 
     // make sure we don't stop completely, otherwise we can't start again (should improve this)
     if (speed < V_MIN) {
@@ -277,7 +281,7 @@ int l2_sched_speed_ramp (int speed, int start_pos, int dist)
     }
 
     if (n_ramps >= N_RAMPS) {
-        printf("no entry left to schedule speed ramp\n");
+        NRF_LOG_INFO("no entry left to schedule speed ramp");
         return 2;
 	}
 
@@ -303,53 +307,53 @@ int l2_sched_speed_ramp (int speed, int start_pos, int dist)
             // move this entry further down the list, we start earlier than this
             ramps[i+1] = ramps[i];
         }
-	}
-    //printf("inserting ramp at %d, s_speed: %d\n", ind, (int)s_speed);
+    }
+    NRF_LOG_INFO("inserting ramp at %d, s_speed: %d", ind, (int)s_speed);
     ramps[ind].delta_v = speed - s_speed;
-    //printf("delta_v: %d\n", (int)(ramps[ind].delta_v));
+    //NRF_LOG_INFO("delta_v: %d\n", (int)(ramps[ind].delta_v));
 
-	if (ramps[ind].delta_v < 0)
-	{
-		// we have to deccelerate, however the algorithm needs a pos deltaRef (flip to first octant)
-		ramps[ind].delta_v = -ramps[ind].delta_v;
-		// remember that we actually go in the negative direction
-		ramps[ind].sign = -1;
-	}
-	else
-		ramps[ind].sign = 1;
+    if (ramps[ind].delta_v < 0) {
+        // we have to deccelerate, however the algorithm needs a pos deltaRef (flip to first octant)
+        ramps[ind].delta_v = -ramps[ind].delta_v;
+        // remember that we actually go in the negative direction
+        ramps[ind].sign = -1;
+    } else {
+            ramps[ind].sign = 1;
+    }
 
     // calc. how long it will take to accelerate (t = 2*s/(2v0 + delta_v) )
     // in speed controller execution cycles (F_EMF_CTRL)
     int delta_t = 2 * 10 * dist * F_EMF_CTRL / (2*s_speed + ramps[ind].delta_v);
 
-	ramps[ind].delta_time = delta_t;
-	ramps[ind].cnt = delta_t;
-	// init bresenham error at 0.5
-	ramps[ind].err = dist/2;
+    ramps[ind].delta_time = delta_t;
+    ramps[ind].cnt = delta_t;
+    // init bresenham error at 0.5
+    ramps[ind].err = dist/2;
     ramps[ind].v = s_speed; // start speed at beginning of ramp
     ramps[ind].start_pos = start_pos;
     ramps[ind].time = 0;    // starting time not yet known
 
-	n_ramps++;  // we have one more ramp scheduled now
-
-	//printf("ramp %d: dv: %d, pos: %d\n", ind, (int)ramps[ind].delta_v, (int)ramps[ind].start_pos);
-	return 0;
+    n_ramps++;  // we have one more ramp scheduled now
+  
+    NRF_LOG_INFO("ramp %d: dv: %d, pos: %d", ind, (int)ramps[ind].delta_v, (int)ramps[ind].start_pos);
+    return 0;
 }
 
 // TODO: use floats instead of fixed point arithmetics for speed calculations
 
 // set new speed ref in mm/s
-void set_speed(unsigned int s)
+void set_speed(uint32_t s)
 {
     // we can max tolerate a 8 bit number for the speed (numerics)
-    if (s > V_MAX)
-        s = V_MAX;    // this is 80km/h in H0 scale
+    if (s > v_max) {
+        s = v_max;    // this is 80km/h in H0 scale
+    }
     ref_speed = s;  // remember value
-    uint32_t emf = s;    // calc required back emf value
-    emf <<= 24;
+
     // divide by mm_per_lsb ratio to get lsb, need to take accu update frq into account
-    emf /= (10*F_EMF_CTRL*cm_per_lsb);
-    l1_set_emf_ref(emf);
+    float emf = s / (10*F_EMF_CTRL*cm_per_lsb);
+
+    l1_set_emf_ref((int32_t)emf);
 }
 
 
@@ -357,10 +361,25 @@ void set_speed(unsigned int s)
 int32_t l2_get_speed()
 {
     int32_t emf = l1_get_emf();
-    int32_t s = (emf * 10*F_EMF_CTRL * cm_per_lsb) >> 24;
+    float f = emf * 10*F_EMF_CTRL * cm_per_lsb;
+    int32_t s = (int32_t)f;
     if (s < 0)  // TODO: direction reversal
         s = 0;
     return s;
+}
+
+
+// set allowed top speed in mm/s
+void l2_set_max_speed(uint16_t v)
+{
+    if (v < V_MIN) {
+        v = V_MIN;    // sanity checking...
+    }
+    v_max = v;
+    // immediately reduce current speed if necessary (might be nicer to have a ramp...)
+    if (ref_speed > v) {
+        set_speed(v);
+    }
 }
 
 

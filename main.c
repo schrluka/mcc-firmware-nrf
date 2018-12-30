@@ -100,13 +100,15 @@ struct adv_status_data {
     int16_t speed;  // measured vehicle speed in mm/sec
     int16_t u_bat;  // battery voltage in mV
     int32_t pos;    // vehicle position in cm
+    int32_t delta_pos; 
+    int8_t  track_id; // to identify tracks
+    int8_t  flags;
 } __attribute__((packed));
 
 
 // BLE advertisement data (we need this for periodic updates of our custom status shipped along with the scan)
 static struct adv_status_data   adv_manuf_data_data;
 static ble_advdata_manuf_data_t adv_manuf_data;
-//static uint8_array_t            adv_manuf_data_array;
 
 
 /**@brief Function for assert macro callback.
@@ -665,18 +667,21 @@ static void advertising_init(void)
     init.advdata.uuids_complete.p_uuids  = m_adv_uuids;
 
     init.srdata.name_type = BLE_ADVDATA_NO_NAME;
+    init.srdata.include_ble_device_addr = true;
     init.srdata.p_manuf_specific_data = &adv_manuf_data;  // our manufacturer specific data goes to the scan response, so we can utilize the full 31 bytes
    
     // manufacturer specific data (used to transmit status infos)
     // add some dummy data, updated in main loop
+    memset(&adv_manuf_data_data, sizeof(adv_manuf_data_data), 0);
     adv_manuf_data_data.pos = 1;
     adv_manuf_data_data.speed = 2;
     adv_manuf_data_data.u_bat = 0x1337;
+    
 
     // capsulate our manufacturer specific data
     adv_manuf_data.data.p_data = (void*)(&adv_manuf_data_data);
     adv_manuf_data.data.size = sizeof(adv_manuf_data_data);
-    adv_manuf_data.company_identifier = 0xFFFF; // TODO: check that this is the value meant for testing
+    adv_manuf_data.company_identifier = 0xFFFF; // value indicates 'no valid company' and can be used for testing
      
     //init.config.ble_adv_extended_enabled = true;   //this allows much longer adv packets -> we can send more manufacturer specific data?!
     init.config.ble_adv_fast_enabled  = true;
@@ -752,9 +757,10 @@ static void advertising_update(void)
     adv_manuf_data_data.speed = (int16_t)l2_get_speed();
     adv_manuf_data_data.u_bat = (int16_t)l2_get_u_bat();
 
-    
+    //NRF_LOG_INFO("pos: %d", (unsigned int)adv_manuf_data_data.pos);
 
     //memset(&srdata, 0, sizeof(srdata));
+    srdata.include_ble_device_addr = true;
     srdata.p_manuf_specific_data = &adv_manuf_data;
 
     // need to pass the max length to the encoder in the length field. Thank's nordic for making it so plain obvious, took me only a couple of hours...
@@ -763,6 +769,7 @@ static void advertising_update(void)
     err_code = ble_advdata_encode(&srdata, m_advertising.enc_scan_rsp_data, &m_advertising.adv_data.scan_rsp_data.len);
     APP_ERROR_CHECK(err_code);
 }
+
 
 /**@brief Function for starting advertising.
  */
@@ -813,7 +820,7 @@ void wdt_event_handler(void)
 /**@brief Application main function.
  */
 int main(void)
-{
+{ 
     uint32_t err_code;
     bool erase_bonds;
     uint32_t last_tick = 0;
@@ -840,8 +847,7 @@ int main(void)
     l1_init();  // prepare controllers before we start the hardware
     hw_init();
 
-    // configure watchdog timer
-    
+    // configure watchdog timer    
     nrf_drv_wdt_config_t config = NRF_DRV_WDT_DEAFULT_CONFIG;
     err_code = nrf_drv_wdt_init(&config, wdt_event_handler);
     APP_ERROR_CHECK(err_code);
@@ -869,7 +875,7 @@ int main(void)
             #endif
             
             if (tick > next_report) {
-                next_report += 200;
+                next_report += 500;
                 // update our database values
                 mcs_update();
 
@@ -919,15 +925,6 @@ int main(void)
                     //power_off();
                 }
             }
-            // report battery status
-            /*
-            static uint32_t bat_update_cnt = 0;
-            if (bat_update_cnt == 500) {
-                bat_update(u_bat);
-                bat_update_cnt = 0;
-            } else
-                bat_update_cnt++;
-                */
         }
     }
 }
@@ -958,11 +955,3 @@ void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
 #endif // DEBUG
 }
 
-/*
-void HardFault_Handler(void)
-{
-    uint32_t *sp = (uint32_t *) __get_MSP(); // Get stack pointer
-    volatile uint32_t ia __attribute__((__unused__)) = sp[24/4]; // Get instruction address from stack
-
-    while(1);
-}*/

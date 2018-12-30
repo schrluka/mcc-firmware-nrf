@@ -7,6 +7,8 @@
 #include "ble_srv_common.h"
 #include "nrf_sdh_ble.h"
 #include "app_util.h"
+#include "fds.h"
+#include "nrf_log.h"
 
 #include "layer2.h"
 #include "model_car_ble_service.h"
@@ -22,7 +24,9 @@
 #define UNIT_1          0x2700      // unit less
 #define UNIT_VOLT       0x2728
 #define UNIT_M_PER_S    0x2712
+#define UNIT_M_PER_S2   0x2713      // meters per second squared
 #define UNIT_M          0x2701
+#define UNIT_WB         0x272C      // magnetic flux: weber = volt seconds
 #define UNIT_PERCENT    0x27AD
 
 
@@ -38,12 +42,10 @@
 // Additional BLE UUIDs not defined by nordic, see https://www.bluetooth.com/specifications/gatt
 #define BLE_UUID_VALID_RANGE         0x2906
 
-
-
 struct char_config_s {
     uint16_t    uuid;       // we use the short 16 bit UUIDs for the chars
     bool        we;         // can the phone or computer change this value
-    void*       p_value;    // pointer to storage of the chars value
+    void*       p_value;    // pointer to storage of the char's value
     size_t      len;        // length in bytes, limited by ble to ~500
     void        (*wr_cb)(); // callback on writes by BLE client (e.g. phone)
     uint16_t    unit;       // ble assigned number indicating unit
@@ -51,7 +53,44 @@ struct char_config_s {
     bool        is_signed;  // true: indicate a signed value
     char*       user_desc;  // human readable string
     void*       p_minmax_val;  // pointer to allowed min. & max value (reported via descriptor to phone) same data type as value
+    bool        fds_store;  // if true, value will be stored in flash using FDS driver
 };
+
+
+/* Array to map FDS return values to strings. */
+char const * fds_err_str[] =
+{
+    "FDS_SUCCESS",
+    "FDS_ERR_OPERATION_TIMEOUT",
+    "FDS_ERR_NOT_INITIALIZED",
+    "FDS_ERR_UNALIGNED_ADDR",
+    "FDS_ERR_INVALID_ARG",
+    "FDS_ERR_NULL_ARG",
+    "FDS_ERR_NO_OPEN_RECORDS",
+    "FDS_ERR_NO_SPACE_IN_FLASH",
+    "FDS_ERR_NO_SPACE_IN_QUEUES",
+    "FDS_ERR_RECORD_TOO_LARGE",
+    "FDS_ERR_NOT_FOUND",
+    "FDS_ERR_NO_PAGES",
+    "FDS_ERR_USER_LIMIT_REACHED",
+    "FDS_ERR_CRC_CHECK_FAILED",
+    "FDS_ERR_BUSY",
+    "FDS_ERR_INTERNAL",
+};
+
+/* Array to map FDS events to strings. */
+static char const * fds_evt_str[] =
+{
+    "FDS_EVT_INIT",
+    "FDS_EVT_WRITE",
+    "FDS_EVT_UPDATE",
+    "FDS_EVT_DEL_RECORD",
+    "FDS_EVT_DEL_FILE",
+    "FDS_EVT_GC",
+};
+
+// we use just a single fds file identified by this magic constant
+#define CONFIG_FILE   0x1337
 
 
 
@@ -60,9 +99,17 @@ struct char_config_s {
 */
 
 
-void mcs_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context);
+static void mcs_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context);
+
+static void fds_evt_handler(fds_evt_t const * p_evt);
 
 void mcs_direction_written();
+
+static void mcs_v_max_written();
+
+static void fds_poll();
+
+static void store_char(const struct char_config_s* char_p);
 
 
 
@@ -75,7 +122,7 @@ static volatile int16_t mcs_speed   = 0;    // measured vehicle speed in mm/sec
 static volatile uint16_t mcs_u_bat  = 0;    // battery voltage in mV
 static volatile int32_t mcs_pos    = 0;     // vehicle position in cm
 static volatile int8_t mcs_direction = MCS_FWD; // which direction we drive
-
+static volatile uint16_t mcs_v_max = 255;     // max. speed in mm/s
 static volatile int8_t minmax_direction[2] = {0,2};
 
 // information needed to register all characteristics with the softdevice
@@ -87,10 +134,11 @@ const struct char_config_s chars[] = {
     {.uuid=0xBE02, .we=false, .p_value=(void*)&mcs_pos, .len=sizeof(mcs_pos), .unit=UNIT_M, .exp=-2, .is_signed=true},
     {.uuid=0xBE03, .we=true, .p_value=(void*)&mcs_direction, .len=sizeof(mcs_direction),
         .wr_cb=&mcs_direction_written, .p_minmax_val=(void*)&minmax_direction},
+    {.uuid=0xBE04, .we=true, .p_value=(void*)&mcs_v_max, .len=sizeof(mcs_v_max),
+        .wr_cb=&mcs_v_max_written, .unit=UNIT_M_PER_S, .exp=-3, .fds_store=true},
 };
 
 // storage for the handles used (and also assigned) by the softdevice which identify everything related to this service
-// service handle used by the softdevice to identify our service
 static volatile uint16_t mcs_service_handle = BLE_GATT_HANDLE_INVALID;
 // connection identification
 static volatile uint16_t mcs_conn_handle = 0;
@@ -100,33 +148,16 @@ ble_gatts_char_handles_t mcs_char_handles[N_CHARS];
 uint16_t mcs_valid_range_descriptors[N_CHARS];
 
 
+// Flag to check flash data system initialization status
+static volatile bool m_fds_initialized = false;
 
+// set when initialization is finished to load all values from flash to memory
+static volatile bool m_fds_read_values = false; 
 
 
 /*******************************************************************************************************************************************
 *   I M P L E M E N T A T I O N
 */
-
-
-/**@brief Function for handling the Connect event.
- *
- * @param[in]   p_ble_evt   Event received from the BLE stack.
- */
-static void on_connect(ble_evt_t const * p_ble_evt)
-{
-    mcs_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
-}
-
-
-/**@brief Function for handling the Disconnect event.
- *
- * @param[in]   p_ble_evt   Event received from the BLE stack.
- */
-static void on_disconnect(ble_evt_t const * p_ble_evt)
-{
-    UNUSED_PARAMETER(p_ble_evt);
-    mcs_conn_handle = BLE_CONN_HANDLE_INVALID;
-}
 
 
 /**@brief Function for handling the Write event.
@@ -135,9 +166,9 @@ static void on_disconnect(ble_evt_t const * p_ble_evt)
  */
 static void on_write(ble_evt_t const * p_ble_evt)
 {
-    ble_gatts_evt_write_t * p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
+    ble_gatts_evt_write_t const * p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
 
-    /* Need to support notifications on client-to-server data transfer ?!
+    /* Needed to support notifications on client-to-server data transfer ?!
     if ((p_evt_write->handle == p_nus->rx_handles.cccd_handle)
         &&
         (p_evt_write->len == 2)
@@ -160,12 +191,17 @@ static void on_write(ble_evt_t const * p_ble_evt)
             if (chars[i].wr_cb != NULL) {
                 chars[i].wr_cb();   // call it
             }
+            // store value in flash?
+            if (chars[i].fds_store) {
+                NRF_LOG_INFO("storing updated value in flash");
+                store_char(&chars[i]);
+            }
         }
     }
 }
 
 
-void mcs_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
+static void mcs_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
 {
     if (p_ble_evt == NULL)
     {
@@ -175,11 +211,12 @@ void mcs_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-            on_connect(p_ble_evt);
+            mcs_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
-            on_disconnect(p_ble_evt);
+            mcs_conn_handle = BLE_CONN_HANDLE_INVALID;
+            // TODO: potentially start a flash garbage collection here?
             break;
         case BLE_GATTS_EVT_WRITE:
             on_write(p_ble_evt);
@@ -321,8 +358,10 @@ static uint32_t char_add()
 
 uint32_t mcs_init()
 {
-   uint32_t   err_code;
+    uint32_t   err_code;
     ble_uuid_t ble_uuid;
+
+    m_fds_initialized = false;
 
     // Add our service as a primary one
     BLE_UUID_BLE_ASSIGN(ble_uuid, BLE_UUID_MODEL_CAR_SERVICE);
@@ -332,11 +371,19 @@ uint32_t mcs_init()
     }
 
     // Add our characteristics
-    return char_add();
+    err_code = char_add();
+    if (err_code != NRF_SUCCESS) {
+        return err_code;
+    }
 
     // register our event listener with the soft device
-    NRF_SDH_BLE_OBSERVER(m_mcs_observer, 3, mcs_on_ble_evt, NULL);  // sencond parameter is the priority level, 3 is lowest
+    NRF_SDH_BLE_OBSERVER(m_mcs_observer, 3, mcs_on_ble_evt, NULL);  // second parameter is the priority level, 3 is lowest
 
+    // start flash storage init, this might take a while, we'll receive a callback
+    APP_ERROR_CHECK(fds_register(fds_evt_handler));
+    err_code = fds_init();
+    
+    return err_code;   
 }
 
 
@@ -357,11 +404,151 @@ uint32_t mcs_update()
 
     mcs_pos = l2_get_pos();
 
+    // TODO: implement notifications
+
+    // check for background tasks of the flash system
+    fds_poll();
+
     return NRF_SUCCESS;
 }
+
+
+// called periodically from main loop to perform background & houskeeping tasks
+static void fds_poll()
+{
+    ret_code_t rc;
+    fds_record_desc_t desc;
+    fds_find_token_t  tok;
+    fds_flash_record_t config;
+
+    if (m_fds_read_values) {
+        m_fds_read_values = false;
+        // go through all characteristics and load their stored value from flash
+        for (int i=0; i<N_CHARS; i++) {
+            // check if this characteristic is stored in flash
+            if (!chars[i].fds_store) {
+                continue;
+            }
+            // try to find the corresponding record, using the UUID as key
+            memset(&desc, sizeof(desc), 0);
+            memset(&tok, sizeof(tok), 0);
+            rc = fds_record_find(CONFIG_FILE, chars[i].uuid, &desc, &tok);
+            if (rc != FDS_SUCCESS) {
+                NRF_LOG_ERROR("no flash entry for char 0x%04x", (unsigned long)chars[i].uuid);
+                // TODO: create an entry?
+                continue;
+            }
+            // get data from flash
+            memset(&config, sizeof(config), 0);
+            rc = fds_record_open(&desc, &config);
+            if (rc != FDS_SUCCESS) {
+                NRF_LOG_ERROR("char 0x%04x: fds error %s", (unsigned long)chars[i].uuid, fds_err_str[rc]);
+                // TODO: create an entry?
+                continue;
+            }
+            // TODO: validate length of entry in flash and expected value
+            memcpy(chars[i].p_value, config.p_data, chars[i].len);
+            // done reading, close the entry
+            rc = fds_record_close(&desc);
+            APP_ERROR_CHECK(rc);
+            // trigger the characteristic's write callback because its value might have changed
+            if (chars[i].wr_cb != NULL) {
+                chars[i].wr_cb();
+            }
+        }
+    }
+}
+
+
+// store a characteristic's value in flash 
+static void store_char(const struct char_config_s* char_p)
+{
+    static fds_record_t rec = {0}; // must be static for th FDS lib
+    fds_record_desc_t desc = {0};
+    fds_find_token_t  tok = {0};
+    ret_code_t rc;    
+
+    rec.file_id           = CONFIG_FILE;
+    rec.key               = char_p->uuid;
+    rec.data.p_data       = char_p->p_value;
+    // The length of a record is always expressed in 4-byte units (words). 
+    rec.data.length_words = (char_p->len + 3) / 4;
+    
+    // try to find the record
+    rc = fds_record_find(CONFIG_FILE, rec.key, &desc, &tok);
+
+    if (rc == FDS_SUCCESS)
+    {
+        // entry exists, update it
+        rc = fds_record_update(&desc, &rec);
+        APP_ERROR_CHECK(rc);
+    }
+    else
+    {
+        // entry not found, creating a new one
+        NRF_LOG_INFO("creating flash entry for 0x%04x", (unsigned long)(char_p->uuid));
+
+        rc = fds_record_write(&desc, &rec);
+        APP_ERROR_CHECK(rc);
+    }
+
+    // FIXME: this is dangerours: another write could be started before the first finished, causing data gargabe because rec needs to be static.
+}
+
 
 // called when the client (e.g. phone) has written mcs_direction
 void mcs_direction_written()
 {
-    printf("mcs_direction: %d\n", (int)mcs_direction);
+    NRF_LOG_INFO("mcs_direction: %d", (int)mcs_direction);
+    // TODO: interface with layer 2 to set the new direction
+}
+
+
+void mcs_v_max_written()
+{
+    NRF_LOG_INFO("mcs_v_max: %d\n", (int)mcs_v_max);
+    l2_set_max_speed(mcs_v_max);
+}
+
+
+// callback from the flash data storage system
+static void fds_evt_handler(fds_evt_t const * p_evt)
+{
+    NRF_LOG_INFO("Event: %s received (%s)",
+                  fds_evt_str[p_evt->id],
+                  fds_err_str[p_evt->result]);
+
+    switch (p_evt->id)
+    {
+        case FDS_EVT_INIT:
+        {
+            if (p_evt->result == FDS_SUCCESS) {
+                m_fds_initialized = true;
+                m_fds_read_values = true;
+            }
+            break;
+        }
+
+        case FDS_EVT_WRITE:
+        {
+            if (p_evt->result == FDS_SUCCESS) {
+                NRF_LOG_INFO("Record ID:\t0x%04x",  p_evt->write.record_id);
+                NRF_LOG_INFO("File ID:\t0x%04x",    p_evt->write.file_id);
+                NRF_LOG_INFO("Record key:\t0x%04x", p_evt->write.record_key);
+            }
+        } break;
+
+        case FDS_EVT_DEL_RECORD:
+        {
+            if (p_evt->result == FDS_SUCCESS) {
+                NRF_LOG_INFO("Record ID:\t0x%04x",  p_evt->del.record_id);
+                NRF_LOG_INFO("File ID:\t0x%04x",    p_evt->del.file_id);
+                NRF_LOG_INFO("Record key:\t0x%04x", p_evt->del.record_key);
+            }
+            
+        } break;
+
+        default:
+            break;
+    }
 }

@@ -17,6 +17,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+
+#include "nrf_log.h"
 #include "nuts_bolts.h"
 
 
@@ -67,10 +69,10 @@ void set_pi_gains(struct pi* ctrl, float k_p, float f_zero, float f_samp)
     // check achieved values
     float k_is = ctrl->k_i / ((float)ctrl->denom);
     if (fabs(k_is-k_i) > 0.1)
-        printf("PI controller resolution problem, more than 10%% I gain error.\n");
+        NRF_LOG_INFO("PI controller resolution problem, more than 10%% I gain error.\n");
     k_is = ctrl->k_p / (100.0F);
     if (fabs(k_is-k_p) > 0.1)
-        printf("PI controller resolution problem, more than 10%% P gain error.\n");
+        NRF_LOG_INFO("PI controller resolution problem, more than 10%% P gain error.\n");
 }
 
 
@@ -118,7 +120,7 @@ int lpf1Init (lpf1_t* filter, uint32_t F, uint32_t tau)
 		filter->alphaDen *= 2;	// use one more bit
 	}
 	// we came here -> could not find a suitable denominator
-	printf("lpf1Init: could not find a denominator\n");
+	NRF_LOG_INFO("lpf1Init: could not find a denominator\n");
 	return 0;
 }
 

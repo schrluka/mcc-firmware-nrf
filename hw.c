@@ -95,7 +95,6 @@ static const nrf_drv_timer_t m_loco3_timer = NRF_DRV_TIMER_INSTANCE(2);
 static nrf_ppi_channel_t     m_loco3_ppi_channel;
 
 
-
 // status of all leds (bit 1 means on)
 static uint32_t leds = 0;
 static nrf_drv_pwm_t m_pwm1 = NRF_DRV_PWM_INSTANCE(1);
@@ -111,6 +110,7 @@ static nrf_pwm_sequence_t const    led_pwm_seq =
 };
 
 static volatile uint32_t sys_tick = 0;
+
 
 
 /**********************************************************************************************
@@ -248,10 +248,12 @@ void hw_dbg_led_off()
     nrf_gpio_pin_set(PIN_DBG_LED);
 }
 
+
 void hw_dbg_led_toggle()
 {
     nrf_gpio_pin_toggle(PIN_DBG_LED);
 }
+
 
 // stop PWM signal of motor (to be able to measure EMF for example)
 void hw_dis_pwm(void)
@@ -413,7 +415,6 @@ void hw_set_led_duty(unsigned int ch, uint32_t d)
         case 2: led_duty.channel_2 = d; break;
         case 3: led_duty.channel_3 = d; break;
     }
-
 }
 
 

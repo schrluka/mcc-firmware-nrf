@@ -6,7 +6,7 @@
 #include "lococo.h"
 
 // max vehicle speed in mm/s
-// for numerical reasons this is limited to 8 bits unsigned (ie 255) which is 80km/h
+// for numerical reasons this is limited to 8 bits unsigned (i.e. 255) which is 80km/h
 #define V_MAX   255
 
 // min safe speed at which can go
@@ -36,6 +36,8 @@ int64_t l2_set_pos(int p);
 uint32_t l2_get_u_bat();
 
 int32_t l2_get_speed();
+
+void l2_set_max_speed(uint16_t v);
 
 void l2_update_pos_est (const struct lococo_tag* tag, int cm_delta);
 
