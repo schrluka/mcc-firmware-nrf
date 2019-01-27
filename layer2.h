@@ -33,9 +33,13 @@ int32_t l2_get_pos();
 
 int64_t l2_set_pos(int p);
 
+uint32_t l2_get_pos_delta();
+
 uint32_t l2_get_u_bat();
 
 int32_t l2_get_speed();
+
+int32_t l2_get_ref_speed();
 
 void l2_set_max_speed(uint16_t v);
 

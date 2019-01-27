@@ -69,6 +69,11 @@ static int32_t pos = 0;
 // low pass filter for battery voltage
 static lpf1_t u_bat_flt;
 
+// last position change. This is updated whenever l2_set_position is called.
+static uint32_t pos_delta = 0;
+
+
+
 APP_TIMER_DEF(l2_timer);
 
 
@@ -124,23 +129,24 @@ void l2_poll(void *p_context)
     }
     execute_l2 = false; // clear flag, we are working now, can be set again by L1 interrupt soon
 
+    // following code runs with a repetition rate of F_EMF_CTRL 
+
     // change ref speed according to position
     if (n_ramps > 0) {
          // check if ramp has started
          if (ramps[0].start_pos <= pos) {
-            // calc next point in the ramp
+            // calc next point (i.e. speed reference value) in the ramp
             if (get_next_ramp_pt(&ramps[0]) == 0) {
                 // this ramp is done, remove it from the array
                 n_ramps--;
-                for (int i=0; i<n_ramps; i++)
-                {
+                for (int i=0; i<n_ramps; i++) {
                     ramps[i] = ramps[i+1];
                 }
                 NRF_LOG_INFO("ramp done, %d remaining",n_ramps);
             }
             log_cnt++;
             if (log_cnt == F_EMF_CTRL/2) {
-                //printf("p:%d  v:%d  t:%d\n", (int)pos, (int)ramps[0].v, (int)ramps[0].time*1000/F_EMF_CTRL);
+                //NRF_LOG_INFO("p:%d  v:%d  t:%d\n", (int)pos, (int)ramps[0].v, (int)ramps[0].time*1000/F_EMF_CTRL);
                 log_cnt = 0;
             }
 
@@ -200,11 +206,19 @@ int64_t l2_set_pos(int p)
     }
 
     pos = p;
+    pos_delta = delta;  // remeber this, can be used by other parts of the firmware
 
     return (delta_emf);
 }
 
 
+uint32_t l2_get_pos_delta()
+{
+    return pos_delta;
+}
+
+
+// returns battery voltage in mV
 uint32_t l2_get_u_bat()
 {
     return (uint32_t)u_bat_flt.y;
@@ -339,7 +353,6 @@ int l2_sched_speed_ramp (int speed, int start_pos, int dist)
     return 0;
 }
 
-// TODO: use floats instead of fixed point arithmetics for speed calculations
 
 // set new speed ref in mm/s
 void set_speed(uint32_t s)
@@ -368,6 +381,11 @@ int32_t l2_get_speed()
     return s;
 }
 
+
+int32_t l2_get_ref_speed()
+{
+    return ref_speed;
+}
 
 // set allowed top speed in mm/s
 void l2_set_max_speed(uint16_t v)
@@ -406,16 +424,16 @@ static void task_run(struct p_task *t)
     {
         case T_TURN_LEFT:
             /*if (t->data == 0)
-                printf("starting turn left\n");*/
+                NRF_LOG_INFO("starting turn left\n");*/
             // flash LED based on tick timer
             if (t->data <= tick) {
-                t->data = tick + 200;   // flash with ~1Hz
+                t->data = tick + 200;   // blink with ~1Hz
                 hw_toggle_led(2);
             }
             break;
         case T_TURN_RIGHT:
             /*if (t->data == 0)
-                printf("starting turn right\n");*/
+                NRF_LOG_INFO("starting turn right\n");*/
             // flash LED based on tick timer
             if (t->data <= tick) {
                 t->data = tick + 200;   // flash

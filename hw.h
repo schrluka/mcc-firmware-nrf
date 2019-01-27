@@ -27,12 +27,15 @@
 // note: needs to match divider for tick counter
 #define F_FAST_CTRL 3000
 
-
-
 #define NUM_LEDS    4
 
 // max duty cycle value for LEDs
 #define LED_PWM_TOP 1023
+
+
+#define PIN_LOCO3_RX    19
+#define PIN_LOCO3_TX    17
+#define PIN_LOCO3_CARR  18
 
 
 /**********************************************************************************************

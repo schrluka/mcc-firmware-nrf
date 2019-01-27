@@ -8,7 +8,7 @@
 
 
 // maximum current (in mA) requested by the speed controller
-#define I_MAX			200
+#define I_MAX			250
 
 // speed controller execution freq in Hz (must be an integer of current ctrl frq)
 #define F_EMF_CTRL      200

@@ -13,13 +13,14 @@ struct lococo_tag {
                             // previous messages
 };
 
+
+
 /**********************************************************************************************
 *   P R O T O T Y P E S                                                                      */
 
-void lococo_init(void);
+void loco3_init(void);
 
-int lococo_get_bat_stop();
+int loco3_get_bat_stop();
 
-void lococo_rx(uint8_t byte, bool err);
 
 #endif // __LOCOCOCO_H__

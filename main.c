@@ -101,8 +101,9 @@ struct adv_status_data {
     int16_t u_bat;  // battery voltage in mV
     int32_t pos;    // vehicle position in cm
     int32_t delta_pos; 
-    int8_t  track_id; // to identify tracks
-    int8_t  flags;
+    int16_t ref_speed;
+    //int8_t  track_id; // to identify tracks
+    //int8_t  flags;
 } __attribute__((packed));
 
 
@@ -195,7 +196,7 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
         NRF_LOG_DEBUG("Received data from BLE NUS. Writing data on UART.");
         NRF_LOG_HEXDUMP_DEBUG(p_evt->params.rx_data.p_data, p_evt->params.rx_data.length);
 
-        // TODO: do something with data coming from host (eg phone)
+        // TODO: do something with data coming from host (eg. phone)
         // for now just echo data back to the sender
         err_code = ble_nus_data_send(&m_nus, p_evt->params.rx_data.p_data, &p_evt->params.rx_data.length, m_conn_handle);
         if ((err_code != NRF_ERROR_INVALID_STATE) && (err_code != NRF_ERROR_RESOURCES) && (err_code != NRF_ERROR_NOT_FOUND))
@@ -356,111 +357,6 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 }
 
 
-/**@brief Function for the application's SoftDevice event handler.
- *
- * @param[in] p_ble_evt SoftDevice event.
- */
- // SDK 12 function
- /*
-static void on_ble_evt(ble_evt_t * p_ble_evt)
-{
-    uint32_t                         err_code;
-
-    switch (p_ble_evt->header.evt_id)
-    {
-        case BLE_GAP_EVT_CONNECTED:
-            err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
-            APP_ERROR_CHECK(err_code);
-            m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
-            hw_dbg_led_on();
-            retarget_set_enabled(true);
-            break; // BLE_GAP_EVT_CONNECTED
-
-        case BLE_GAP_EVT_DISCONNECTED:
-            err_code = bsp_indication_set(BSP_INDICATE_IDLE);
-            APP_ERROR_CHECK(err_code);
-            m_conn_handle = BLE_CONN_HANDLE_INVALID;
-            hw_dbg_led_off();
-            retarget_set_enabled(false);
-            err_code =  ble_advertising_restart_without_whitelist();
-            APP_ERROR_CHECK(err_code);
-            break; // BLE_GAP_EVT_DISCONNECTED
-
-        case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
-            // Pairing not supported
-            err_code = sd_ble_gap_sec_params_reply(m_conn_handle, BLE_GAP_SEC_STATUS_PAIRING_NOT_SUPP, NULL, NULL);
-            APP_ERROR_CHECK(err_code);
-            break; // BLE_GAP_EVT_SEC_PARAMS_REQUEST
-
-        case BLE_GATTS_EVT_SYS_ATTR_MISSING:
-            // No system attributes have been stored.
-            err_code = sd_ble_gatts_sys_attr_set(m_conn_handle, NULL, 0, 0);
-            APP_ERROR_CHECK(err_code);
-            break; // BLE_GATTS_EVT_SYS_ATTR_MISSING
-
-        case BLE_GATTC_EVT_TIMEOUT:
-            // Disconnect on GATT Client timeout event.
-            err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle,
-                                             BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-            APP_ERROR_CHECK(err_code);
-            break; // BLE_GATTC_EVT_TIMEOUT
-
-        case BLE_GATTS_EVT_TIMEOUT:
-            // Disconnect on GATT Server timeout event.
-            err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
-                                             BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-            APP_ERROR_CHECK(err_code);
-            break; // BLE_GATTS_EVT_TIMEOUT
-
-        case BLE_EVT_USER_MEM_REQUEST:
-            err_code = sd_ble_user_mem_reply(p_ble_evt->evt.gattc_evt.conn_handle, NULL);
-            APP_ERROR_CHECK(err_code);
-            break; // BLE_EVT_USER_MEM_REQUEST
-
-        case BLE_GATTS_EVT_RW_AUTHORIZE_REQUEST:
-        {
-            ble_gatts_evt_rw_authorize_request_t  req;
-            ble_gatts_rw_authorize_reply_params_t auth_reply;
-
-            req = p_ble_evt->evt.gatts_evt.params.authorize_request;
-
-            if (req.type != BLE_GATTS_AUTHORIZE_TYPE_INVALID)
-            {
-                if ((req.request.write.op == BLE_GATTS_OP_PREP_WRITE_REQ)     ||
-                    (req.request.write.op == BLE_GATTS_OP_EXEC_WRITE_REQ_NOW) ||
-                    (req.request.write.op == BLE_GATTS_OP_EXEC_WRITE_REQ_CANCEL))
-                {
-                    if (req.type == BLE_GATTS_AUTHORIZE_TYPE_WRITE)
-                    {
-                        auth_reply.type = BLE_GATTS_AUTHORIZE_TYPE_WRITE;
-                    }
-                    else
-                    {
-                        auth_reply.type = BLE_GATTS_AUTHORIZE_TYPE_READ;
-                    }
-                    auth_reply.params.write.gatt_status = APP_FEATURE_NOT_SUPPORTED;
-                    err_code = sd_ble_gatts_rw_authorize_reply(p_ble_evt->evt.gatts_evt.conn_handle,
-                                                               &auth_reply);
-                    APP_ERROR_CHECK(err_code);
-                }
-            }
-        } break; // BLE_GATTS_EVT_RW_AUTHORIZE_REQUEST
-
-#if (NRF_SD_BLE_API_VERSION == 3)
-        case BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST:
-            err_code = sd_ble_gatts_exchange_mtu_reply(p_ble_evt->evt.gatts_evt.conn_handle,
-                                                       NRF_BLE_MAX_MTU_SIZE);
-            APP_ERROR_CHECK(err_code);
-            break; // BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST
-#endif
-
-        default:
-            // No implementation needed.
-            break;
-    }
-}*/
-
-
 /**@brief Function for handling BLE events.
  *
  * @param[in]   p_ble_evt   Bluetooth stack event.
@@ -534,27 +430,6 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             break;
     }
 }
-
-/**@brief Function for dispatching a SoftDevice event to all modules with a SoftDevice
- *        event handler.
- *
- * @details This function is called from the SoftDevice event interrupt handler after a
- *          SoftDevice event has been received.
- *
- * @param[in] p_ble_evt  SoftDevice event.
- */
- /* SDK 12 function
-static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
-{
-    ble_conn_params_on_ble_evt(p_ble_evt);
-    ble_nus_on_ble_evt(&m_nus, p_ble_evt);
-    bat_event(p_ble_evt);
-    mcs_on_ble_evt(p_ble_evt);  // our dedicated model car service
-    on_ble_evt(p_ble_evt);
-    ble_advertising_on_ble_evt(p_ble_evt);
-    bsp_btn_ble_on_ble_evt(p_ble_evt);
-} */
-
 
 
 /**@brief Function for the SoftDevice initialization.
@@ -756,8 +631,8 @@ static void advertising_update(void)
     adv_manuf_data_data.pos = l2_get_pos();
     adv_manuf_data_data.speed = (int16_t)l2_get_speed();
     adv_manuf_data_data.u_bat = (int16_t)l2_get_u_bat();
-
-    //NRF_LOG_INFO("pos: %d", (unsigned int)adv_manuf_data_data.pos);
+    adv_manuf_data_data.delta_pos = l2_get_pos_delta();
+    adv_manuf_data_data.ref_speed = l2_get_ref_speed();
 
     //memset(&srdata, 0, sizeof(srdata));
     srdata.include_ble_device_addr = true;
@@ -842,7 +717,7 @@ int main(void)
     retarget_init(&m_nus);
 
     // project specific init
-    lococo_init();
+    loco3_init();
     l2_init();
     l1_init();  // prepare controllers before we start the hardware
     hw_init();
@@ -915,7 +790,7 @@ int main(void)
                 hw_set_led(0,0);   // headligth
                 hw_set_led(1,0);   // backlight
 
-                if (lococo_get_bat_stop() && (!hw_get_reed())) {
+                if (loco3_get_bat_stop() && (!hw_get_reed())) {
                     // reed is active (we are in a station) and this is marked as battery-dead station, stop here and shut down
                     power_off();
                 }

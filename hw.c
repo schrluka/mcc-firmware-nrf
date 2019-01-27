@@ -21,11 +21,10 @@
 #include "nrf_drv_saadc.h"
 #include "boards.h"
 #include "bsp.h"
-#include "app_uart.h"
-
 #include "hw.h"
 #include "layer1.h"
 #include "lococo.h"
+
 
 
 /**********************************************************************************************
@@ -42,10 +41,6 @@
 
 #define PIN_PWR_BTN     22
 #define PIN_REED        23
-
-#define PIN_LOCO3_RX    19
-#define PIN_LOCO3_TX    17
-#define PIN_LOCO3_CARR  18
 
 #define LED_HEAD        20
 #define LED_BACK        15
@@ -89,12 +84,6 @@ static nrf_saadc_value_t     m_adc_buffer_pool[2][SAMPLES_IN_BUFFER];   // two s
 static nrf_ppi_channel_t     m_adc_ppi_channel;
 
 
-// LoCo3 Hardware
-
-static const nrf_drv_timer_t m_loco3_timer = NRF_DRV_TIMER_INSTANCE(2);
-static nrf_ppi_channel_t     m_loco3_ppi_channel;
-
-
 // status of all leds (bit 1 means on)
 static uint32_t leds = 0;
 static nrf_drv_pwm_t m_pwm1 = NRF_DRV_PWM_INSTANCE(1);
@@ -121,6 +110,8 @@ static inline void init_adc();
 static inline void init_loco3();
 
 static void update_leds();
+
+static void timer_handler(nrf_timer_event_t event_type, void * p_context);
 
 
 
@@ -218,9 +209,6 @@ void hw_init()
     hw_set_led_duty(1,LED_PWM_TOP/3);   // lower back light
     hw_set_led_duty(2,LED_PWM_TOP-1);    // full power turn lights
     hw_set_led_duty(3,LED_PWM_TOP-1);
-
-    // init loco3 hardware
-    init_loco3();
 }
 
 
@@ -497,12 +485,6 @@ static void saadc_callback(nrf_drv_saadc_evt_t const * p_event)
 }
 
 
-// unused timer interrupt handler
-void timer_handler(nrf_timer_event_t event_type, void * p_context)
-{
-
-}
-
 
 static inline void init_adc()
 {
@@ -544,7 +526,7 @@ static inline void init_adc()
 
     nrf_drv_timer_config_t timer_cfg = NRF_DRV_TIMER_DEFAULT_CONFIG;
     timer_cfg.bit_width = NRF_TIMER_BIT_WIDTH_32;
-    ret = nrf_drv_timer_init(&m_adc_timer, &timer_cfg, timer_handler);   // don't register a timer interrupt
+    ret = nrfx_timer_init(&m_adc_timer, &timer_cfg, timer_handler);   // register a dummy timer interrupt
     APP_ERROR_CHECK(ret);
 
     // setup timer to trigger compares
@@ -576,111 +558,11 @@ static inline void init_adc()
 }
 
 
-#define UART_TX_BUF_SIZE                256                                         /**< UART TX buffer size. */
-#define UART_RX_BUF_SIZE                256                                         /**< UART RX buffer size. */
-
-
-
-/**@brief   Function for handling app_uart events.
- *
- * @details This function will receive a single character from the app_uart module and send to
- *          processing by the loco3 module.
- */
-void loco3_uart_event_handle(app_uart_evt_t * p_event)
+// unused timer interrupt handler (interrupt is never enabled)
+static void timer_handler(nrf_timer_event_t event_type, void * p_context)
 {
-    uint8_t ch;
-
-    //hw_dbg_led_toggle();
-
-    switch (p_event->evt_type)
-    {
-        case APP_UART_DATA_READY:
-            UNUSED_VARIABLE(app_uart_get(&ch));
-            //printf("%d\n",(int)ch);
-            lococo_rx(ch, false);
-            break;
-
-        case APP_UART_COMMUNICATION_ERROR:
-            lococo_rx(0, true);
-            break;
-
-        case APP_UART_FIFO_ERROR:
-            lococo_rx(0, true);
-            break;
-
-        default:
-            break;
-    }
 
 }
-
-
-// hardware init for loco3 hardware (carrier signal generation, uart, etc)
-static inline void init_loco3()
-{
-    ret_code_t ret;
-    // use a timer to create the LoCo3 carrier signal by toggling its GPIO pin on compare
-
-    nrf_drv_timer_config_t timer_cfg = NRF_DRV_TIMER_DEFAULT_CONFIG;
-    timer_cfg.bit_width = NRF_TIMER_BIT_WIDTH_32;
-    ret = nrf_drv_timer_init(&m_loco3_timer, &timer_cfg, timer_handler);   // don't register a timer interrupt
-    APP_ERROR_CHECK(ret);
-
-    // setup timer to trigger compares
-    uint32_t ticks = 16000000 / (2*F_LOCO3);
-    nrf_drv_timer_extended_compare(&m_loco3_timer,
-                                   NRF_TIMER_CC_CHANNEL0,
-                                   ticks,
-                                   NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK,
-                                   false);
-    nrf_drv_timer_enable(&m_loco3_timer);
-
-    // setup output pin which will toggle on ppi event
-    const nrf_drv_gpiote_out_config_t loco3_carrier_pin_config = GPIOTE_CONFIG_OUT_TASK_TOGGLE(true);
-
-    ret = nrf_drv_gpiote_out_init(PIN_LOCO3_CARR, &loco3_carrier_pin_config);
-    APP_ERROR_CHECK(ret);
-
-    nrf_drv_gpiote_out_task_enable(PIN_LOCO3_CARR);
-
-
-    // setup ppi channel so that timer compare event is triggered
-    uint32_t timer_compare_event_addr = nrf_drv_timer_compare_event_address_get(&m_loco3_timer,
-                                                                                NRF_TIMER_CC_CHANNEL0);
-
-    uint32_t gpio_toggle_task_addr   = nrf_drv_gpiote_out_task_addr_get(PIN_LOCO3_CARR);
-
-    ret = nrf_drv_ppi_channel_alloc(&m_loco3_ppi_channel);
-    APP_ERROR_CHECK(ret);
-
-    ret = nrf_drv_ppi_channel_assign(m_loco3_ppi_channel, timer_compare_event_addr, gpio_toggle_task_addr);
-    APP_ERROR_CHECK(ret);
-
-    // enable PPI to trigger adc on timer compare
-    ret = nrf_drv_ppi_channel_enable(m_loco3_ppi_channel);
-    APP_ERROR_CHECK(ret);
-
-    // init uart
-    uint32_t                     err_code;
-    const app_uart_comm_params_t comm_params = {
-            PIN_LOCO3_RX,
-            PIN_LOCO3_TX,
-            UART_PIN_DISCONNECTED,  // rts
-            UART_PIN_DISCONNECTED,  // cts
-            APP_UART_FLOW_CONTROL_DISABLED,
-            false,
-            UART_BAUDRATE_BAUDRATE_Baud9600};
-
-    APP_UART_FIFO_INIT( &comm_params,
-                       UART_RX_BUF_SIZE,
-                       UART_TX_BUF_SIZE,
-                       loco3_uart_event_handle,
-                       APP_IRQ_PRIORITY_LOW,
-                       err_code);
-    APP_ERROR_CHECK(err_code);
-}
-
-
 
 
 // en-/disable leds according to global var
