@@ -22,6 +22,7 @@
 // nordic bsp/lib
 #include "app_timer.h"
 #include "nrf_log.h"
+#include "vehicle_follower.h"
 
 
 
@@ -72,7 +73,8 @@ static lpf1_t u_bat_flt;
 // last position change. This is updated whenever l2_set_position is called.
 static uint32_t pos_delta = 0;
 
-
+// 
+static struct pi distance_ctrl;
 
 APP_TIMER_DEF(l2_timer);
 
@@ -112,6 +114,10 @@ void l2_init()
     // start timer with 1ms timout
     err = app_timer_start(l2_timer, APP_TIMER_TICKS(1), NULL);
     APP_ERROR_CHECK(err);
+
+    float f_cross = 4;  // position controller crossover freq in Hz
+    float k_p = f_cross * 2 * 3.1416F * 10; // *10 because pos is in cm but speed in mm/s
+    set_pi_gains(&distance_ctrl, k_p, 1, F_EMF_CTRL);
 }
 
 
@@ -131,6 +137,20 @@ void l2_poll(void *p_context)
 
     // following code runs with a repetition rate of F_EMF_CTRL 
 
+    int32_t v_max = V_MAX; 
+    int32_t dist = vf_get_dist_2_lead(pos);
+    if (dist > 0) {
+        // there is a vehicle in front of us
+        if (dist < 20) {
+            // it's close, use a controller to keep a minimum distance
+            v_max = update_pi(&distance_ctrl, 18 - dist);
+        }
+    } else {
+        // pre init integrator for current crusing speed so that the controller is ready to smoothly 
+        // take over control
+        distance_ctrl.int_state = ref_speed;
+    }
+
     // change ref speed according to position
     if (n_ramps > 0) {
          // check if ramp has started
@@ -146,12 +166,17 @@ void l2_poll(void *p_context)
             }
             log_cnt++;
             if (log_cnt == F_EMF_CTRL/2) {
-                //NRF_LOG_INFO("p:%d  v:%d  t:%d\n", (int)pos, (int)ramps[0].v, (int)ramps[0].time*1000/F_EMF_CTRL);
+                NRF_LOG_INFO("p:%d  v:%d  dist:%d\n", (int)pos, (int)ramps[0].v, (int)dist);
                 log_cnt = 0;
             }
 
             // update ref speed, this will pass the correct emf ref voltage to layer 1
-            set_speed(ramps[0].v);
+            int32_t v = ramps[0].v;
+            // check limit set by distance controller
+            if (v > v_max) {
+                v = v_max;
+            }
+            set_speed(v);
         }
     }
 
@@ -285,7 +310,7 @@ int l2_sched_speed_ramp (int speed, int start_pos, int dist)
 {
     /* TODO: graceful handling
     if (speed > V_MAX) {
-        NRF_LOG_ERROR("speed to high\n");
+        NRF_LOG_ERROR("speed too high");
 	return 1;
     } */
 

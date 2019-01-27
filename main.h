@@ -3,8 +3,6 @@
 #define __MAIN_H__
 
 
-// SDK 15
-
 #define APP_BLE_CONN_CFG_TAG            1                                           /**< A tag identifying the SoftDevice BLE configuration. */
 
 #define DEVICE_NAME                     "MCC"                            /**< Name of device. Will be included in the advertising data. */
@@ -26,8 +24,20 @@
 
 #define DEAD_BEEF                       0xDEADBEEF                                  /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
-//#define UART_TX_BUF_SIZE                256                                         /**< UART TX buffer size. */
-//#define UART_RX_BUF_SIZE                256                                         /**< UART RX buffer size. */
+
+
+// struct which is added to the advertisement broadcast to send status info.
+// this must match the app and has to be quite short (not many bytes available in the ble adv bc)
+// TODO: resturcture code, its uggly to have this in main
+// TODO: should we add a version number here?
+struct adv_status_data {
+    int16_t speed;  // measured vehicle speed in mm/sec
+    int16_t u_bat;  // battery voltage in mV
+    int32_t pos;    // vehicle position in cm
+    int32_t delta_pos; 
+    int8_t  track_id; // to identify tracks
+    int8_t  flags;
+} __attribute__((packed));
 
 
 

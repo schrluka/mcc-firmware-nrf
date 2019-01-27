@@ -42,11 +42,11 @@
 #include "ble_advdata.h"
 #include "ble_advertising.h"
 #include "ble_conn_params.h"
+#include "nrf_ble_gatt.h"
+#include "nrf_ble_qwr.h"
 #include "nrf_sdh.h"
 #include "nrf_sdh_soc.h"
 #include "nrf_sdh_ble.h"
-#include "nrf_ble_gatt.h"
-#include "nrf_ble_qwr.h"
 #include "app_timer.h"
 #include "ble_nus.h"
 #include "app_uart.h"
@@ -68,7 +68,7 @@
 #include "lococo.h"
 #include "battery_service.h"
 #include "model_car_ble_service.h"
-
+#include "vehicle_follower.h"
 #include "main.h"
 
 
@@ -82,7 +82,7 @@ static uint16_t   m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the
 static uint16_t   m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;            /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
 // advertised UUIDs
 static ble_uuid_t m_adv_uuids[] = {             /**< Universally unique service identifier we advertise */
-//  {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE},  // announcing two UUIDs raises an exception
+//  {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE},  // announcing two UUIDs raises an exception (too long for advertising?)
   {BLE_UUID_MODEL_CAR_SERVICE, BLE_UUID_TYPE_VENDOR_BEGIN}};  
 
 //static ble_uuid_t                       m_adv_uuids[] = {{BLE_UUID_MODEL_CAR_SERVICE, BLE_UUID_TYPE_VENDOR_BEGIN}};
@@ -91,20 +91,6 @@ static ble_uuid_t m_adv_uuids[] = {             /**< Universally unique service 
 
 // watchdog channel id
 static nrf_drv_wdt_channel_id m_channel_id;
-
-
-// struct which is added to the advertisement broadcast to send status info.
-// this must match the app and has to be quite short (not many bytes available in the ble adv bc)
-// TODO: should we add a version number here?
-struct adv_status_data {
-    int16_t speed;  // measured vehicle speed in mm/sec
-    int16_t u_bat;  // battery voltage in mV
-    int32_t pos;    // vehicle position in cm
-    int32_t delta_pos; 
-    int16_t ref_speed;
-    //int8_t  track_id; // to identify tracks
-    //int8_t  flags;
-} __attribute__((packed));
 
 
 // BLE advertisement data (we need this for periodic updates of our custom status shipped along with the scan)
@@ -632,7 +618,7 @@ static void advertising_update(void)
     adv_manuf_data_data.speed = (int16_t)l2_get_speed();
     adv_manuf_data_data.u_bat = (int16_t)l2_get_u_bat();
     adv_manuf_data_data.delta_pos = l2_get_pos_delta();
-    adv_manuf_data_data.ref_speed = l2_get_ref_speed();
+    //adv_manuf_data_data.ref_speed = l2_get_ref_speed();
 
     //memset(&srdata, 0, sizeof(srdata));
     srdata.include_ble_device_addr = true;
@@ -721,6 +707,7 @@ int main(void)
     l2_init();
     l1_init();  // prepare controllers before we start the hardware
     hw_init();
+    vf_init();  // init and start scanning for other vehicles
 
     // configure watchdog timer    
     nrf_drv_wdt_config_t config = NRF_DRV_WDT_DEAFULT_CONFIG;
@@ -750,7 +737,7 @@ int main(void)
             #endif
             
             if (tick > next_report) {
-                next_report += 500;
+                next_report += 250;
                 // update our database values
                 mcs_update();
 
@@ -797,7 +784,7 @@ int main(void)
 
                 if (u_bat < 2800)  {
                     // battery is completely empty, stop here
-                    //power_off();
+                    power_off();
                 }
             }
         }
@@ -820,11 +807,9 @@ void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
         hw_set_led(i,0);
     }
 
-    //printf("fault\n");
-
     hw_set_led(3,1);
-    //while(1)
-    //    power_manage();
+    while(1)
+        idle_state_handle();
 
     app_error_save_and_stop(id, pc, info);
 #endif // DEBUG

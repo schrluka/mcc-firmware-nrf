@@ -72,14 +72,13 @@ void l1_init()
     float kp = 0.9F * PWM_PERIOD / 3300;    // rescale from voltage to duty cycle by /3300mV and multiply with PWM period to get compare value
 
     set_pi_gains(&current_ctrl, kp, 500, F_FAST_CTRL);
-    //NRF_LOG_INFO("current ctrl: kI: %d   kP: %d   denom: %d \n", (int)current_ctrl.k_i, (int)current_ctrl.k_p, (int)current_ctrl.denom);
+    //NRF_LOG_INFO("current ctrl: kI: %d   kP: %d   denom: %d", (int)current_ctrl.k_i, (int)current_ctrl.k_p, (int)current_ctrl.denom);
 
     speed_ctrl.max = I_MAX;
     speed_ctrl.min = 0;
     speed_ctrl.int_state = 0;
-    //set_pi_gains(&speed_ctrl, 0.6, 15, F_EMF_CTRL);
-    set_pi_gains(&speed_ctrl, 0.4, 10, F_EMF_CTRL);
-    //NRF_LOG_INFO("speed ctrl: kI: %d   kP: %d   denom: %d \n", (int)speed_ctrl.k_i, (int)speed_ctrl.k_p, (int)speed_ctrl.denom);
+    set_pi_gains(&speed_ctrl, 0.4F, 10, F_EMF_CTRL);
+    //NRF_LOG_INFO("speed ctrl: kI: %d   kP: %d   denom: %d", (int)speed_ctrl.k_i, (int)speed_ctrl.k_p, (int)speed_ctrl.denom);
 }
 
 
