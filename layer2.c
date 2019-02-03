@@ -76,6 +76,8 @@ static uint32_t pos_delta = 0;
 // 
 static struct pi distance_ctrl;
 
+static uint32_t dist = 0;
+
 APP_TIMER_DEF(l2_timer);
 
 
@@ -102,7 +104,7 @@ void l2_init()
     n_tasks = 0;
 
     // schedule initial acceleration
-    l2_sched_speed_ramp(60, 0, 30);    // 96mm/s is 30km/h, accelerate over next 30cm
+    l2_sched_speed_ramp(70, 0, 30);    // 96mm/s is 30km/h, accelerate over next 30cm
 
     NRF_LOG_INFO("init ramp: dv:%d, sign:%d, dt:%d, v:%d", (int)ramps[0].delta_v, (int)ramps[0].sign, (int)ramps[0].delta_time, (int)ramps[0].v);
     lpf1Init(&u_bat_flt, F_EMF_CTRL, 2000000);  // 3rd param is time const of PT1 low pass filter in us
@@ -115,9 +117,9 @@ void l2_init()
     err = app_timer_start(l2_timer, APP_TIMER_TICKS(1), NULL);
     APP_ERROR_CHECK(err);
 
-    float f_cross = 4;  // position controller crossover freq in Hz
+    float f_cross = 0.2;  // position controller crossover freq in Hz
     float k_p = f_cross * 2 * 3.1416F * 10; // *10 because pos is in cm but speed in mm/s
-    set_pi_gains(&distance_ctrl, k_p, 1, F_EMF_CTRL);
+    set_pi_gains(&distance_ctrl, k_p, 0, F_EMF_CTRL);
 }
 
 
@@ -126,6 +128,7 @@ void l2_init()
 void l2_poll(void *p_context)
 {
     static int log_cnt = 0;
+    
     // update our position from the integrated back emf voltage
     float f_pos = l1_get_emf_pos() * cm_per_lsb;
     pos = (int32_t)f_pos;  
@@ -137,21 +140,8 @@ void l2_poll(void *p_context)
 
     // following code runs with a repetition rate of F_EMF_CTRL 
 
-    int32_t v_max = V_MAX; 
-    int32_t dist = vf_get_dist_2_lead(pos);
-    if (dist > 0) {
-        // there is a vehicle in front of us
-        if (dist < 20) {
-            // it's close, use a controller to keep a minimum distance
-            v_max = update_pi(&distance_ctrl, 18 - dist);
-        }
-    } else {
-        // pre init integrator for current crusing speed so that the controller is ready to smoothly 
-        // take over control
-        distance_ctrl.int_state = ref_speed;
-    }
 
-    // change ref speed according to position
+    // change max speed according to position dependent speed ramps
     if (n_ramps > 0) {
          // check if ramp has started
          if (ramps[0].start_pos <= pos) {
@@ -164,12 +154,7 @@ void l2_poll(void *p_context)
                 }
                 NRF_LOG_INFO("ramp done, %d remaining",n_ramps);
             }
-            log_cnt++;
-            if (log_cnt == F_EMF_CTRL/2) {
-                NRF_LOG_INFO("p:%d  v:%d  dist:%d\n", (int)pos, (int)ramps[0].v, (int)dist);
-                log_cnt = 0;
-            }
-
+            
             // update ref speed, this will pass the correct emf ref voltage to layer 1
             int32_t v = ramps[0].v;
             // check limit set by distance controller
@@ -178,6 +163,27 @@ void l2_poll(void *p_context)
             }
             set_speed(v);
         }
+    }
+
+
+    dist = vf_get_dist_2_lead(pos);
+    distance_ctrl.max = ramps[0].v; // ramp gives our allowed max. speed
+    int32_t v_ref;
+    if (dist > 0) {
+        // there is a vehicle in front of us
+        
+        // it's close, use a controller to keep a minimum distance
+        v_ref = update_pi(&distance_ctrl, -(20 - dist));
+    } else {
+        // no vehicle in front
+        v_ref = update_pi(&distance_ctrl, 20);
+    }
+    set_speed(v_ref);    
+
+    log_cnt++;
+    if (log_cnt == F_EMF_CTRL/2) {
+        NRF_LOG_INFO("p:%d  v:%d v_ref:%d  dist:%d\n", (int)pos, (int)ramps[0].v, (int)v_ref, (int)dist);
+        log_cnt = 0;
     }
 
     // check position dependent tasks
@@ -237,9 +243,16 @@ int64_t l2_set_pos(int p)
 }
 
 
+// returns how much the position (in cm) changed due to last call to l2_set_pos()
 uint32_t l2_get_pos_delta()
 {
     return pos_delta;
+}
+
+
+int32_t l2_get_dist()
+{
+    return dist;
 }
 
 
@@ -260,7 +273,6 @@ void l2_update_pos_est (const struct lococo_tag* tag, int cm_delta)
     if (cm_delta > ((1<<16)-2))
         return;
 
-    // this is not done very often, we can do this with floats
     float gain = ((float)cm_delta) / tag->delta_pos;    // delta pos is in back emf accu LSBs
     int new_cm_per_lsb = (int)(gain * (1<<24));
 

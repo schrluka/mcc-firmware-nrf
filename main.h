@@ -36,7 +36,7 @@ struct adv_status_data {
     int32_t pos;    // vehicle position in cm
     int32_t delta_pos; 
     int8_t  track_id; // to identify tracks
-    int8_t  flags;
+    int8_t  dist;
 } __attribute__((packed));
 
 

@@ -35,6 +35,8 @@ int64_t l2_set_pos(int p);
 
 uint32_t l2_get_pos_delta();
 
+int32_t l2_get_dist();
+
 uint32_t l2_get_u_bat();
 
 int32_t l2_get_speed();

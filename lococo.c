@@ -192,7 +192,7 @@ void loco3_init()
 }
 
 
-// has to be called regularly by main loop (~ every 1ms)
+// has to be called regularly by main loop
 void loco3_poll(void* p_context)
 {
     uint32_t ret;

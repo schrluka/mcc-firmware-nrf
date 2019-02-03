@@ -618,6 +618,14 @@ static void advertising_update(void)
     adv_manuf_data_data.speed = (int16_t)l2_get_speed();
     adv_manuf_data_data.u_bat = (int16_t)l2_get_u_bat();
     adv_manuf_data_data.delta_pos = l2_get_pos_delta();
+    int32_t d = l2_get_dist();
+    if (d > 127) {
+        d = 127;
+    }
+    if (d < -128) {
+        d = -128;
+    }
+    adv_manuf_data_data.dist = d;
     //adv_manuf_data_data.ref_speed = l2_get_ref_speed();
 
     //memset(&srdata, 0, sizeof(srdata));
