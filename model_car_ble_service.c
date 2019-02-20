@@ -1,3 +1,16 @@
+/*******************************************************************************************************************************************
+*
+* Faller Car Controller - NRF52 Firmware
+*
+* (c) 2016
+* Lukas Schrittwieser
+*
+* all rights reserved
+*
+* Model Car Service: BLE Service, nonvolatile storage of characteristics (config data)
+*
+*******************************************************************************************************************************************/
+
 
 #include <string.h>
 #include <stdio.h>

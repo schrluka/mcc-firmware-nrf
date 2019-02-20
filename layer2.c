@@ -161,19 +161,18 @@ void l2_poll(void *p_context)
             if (v > v_max) {
                 v = v_max;
             }
-            set_speed(v);
+            //set_speed(v);
         }
     }
 
-
+    // distance control (to vehicle in front)
     dist = vf_get_dist_2_lead(pos);
     distance_ctrl.max = ramps[0].v; // ramp gives our allowed max. speed
     int32_t v_ref;
+    const int32_t ref_distance = 20;
     if (dist > 0) {
-        // there is a vehicle in front of us
-        
-        // it's close, use a controller to keep a minimum distance
-        v_ref = update_pi(&distance_ctrl, -(20 - dist));
+        // there is a vehicle in front of us, use a controller to keep a minimum distance
+        v_ref = update_pi(&distance_ctrl, -(ref_distance - dist));
     } else {
         // no vehicle in front
         v_ref = update_pi(&distance_ctrl, 20);

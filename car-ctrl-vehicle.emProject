@@ -146,6 +146,8 @@
     <file file_name="config/sdk_config.h" />
     <file file_name="vehicle_follower.c" />
     <file file_name="vehicle_follower.h" />
+    <file file_name="advertising.c" />
+    <file file_name="advertising.h" />
   </project>
   <configuration
     Name="Debug"
