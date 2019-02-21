@@ -122,7 +122,7 @@ static void mcs_v_max_written();
 
 static void fds_poll();
 
-static void store_char(const struct char_config_s* char_p);
+static bool store_char(const struct char_config_s* char_p);
 
 
 
@@ -135,8 +135,12 @@ static volatile int16_t mcs_speed   = 0;    // measured vehicle speed in mm/sec
 static volatile uint16_t mcs_u_bat  = 0;    // battery voltage in mV
 static volatile int32_t mcs_pos    = 0;     // vehicle position in cm
 static volatile int8_t mcs_direction = MCS_FWD; // which direction we drive
-static volatile uint16_t mcs_v_max = 255;     // max. speed in mm/s
 static volatile int8_t minmax_direction[2] = {0,2};
+
+static volatile uint16_t mcs_v_max = 255;     // max. speed in mm/s
+
+static volatile uint8_t mcs_dist_coil2tail = 10;    // distance loco3 coil to end of vehicle in cm
+
 
 // information needed to register all characteristics with the softdevice
 const struct char_config_s chars[] = {
@@ -149,7 +153,13 @@ const struct char_config_s chars[] = {
         .wr_cb=&mcs_direction_written, .p_minmax_val=(void*)&minmax_direction},
     {.uuid=0xBE04, .we=true, .p_value=(void*)&mcs_v_max, .len=sizeof(mcs_v_max),
         .wr_cb=&mcs_v_max_written, .unit=UNIT_M_PER_S, .exp=-3, .fds_store=true},
+    {.uuid=0xBE05, .we=true, .p_value=(void*)&mcs_dist_coil2tail, .len=sizeof(mcs_dist_coil2tail),
+        .unit=UNIT_M, .exp=-2, .fds_store=true},
+
 };
+
+// set to true if the char with the same index was changed in RAM and needs to be updated in flash
+static bool char_dirty[N_CHARS] = {0};
 
 // storage for the handles used (and also assigned) by the softdevice which identify everything related to this service
 static volatile uint16_t mcs_service_handle = BLE_GATT_HANDLE_INVALID;
@@ -166,6 +176,10 @@ static volatile bool m_fds_initialized = false;
 
 // set when initialization is finished to load all values from flash to memory
 static volatile bool m_fds_read_values = false; 
+
+// set to true while a flash write access is in progress, cleared by callback
+static volatile bool m_fds_write_in_progress = false;
+
 
 
 /*******************************************************************************************************************************************
@@ -206,9 +220,11 @@ static void on_write(ble_evt_t const * p_ble_evt)
             }
             // store value in flash?
             if (chars[i].fds_store) {
-                NRF_LOG_INFO("storing updated value in flash");
-                store_char(&chars[i]);
+                //NRF_LOG_INFO("storing updated value in flash");
+                char_dirty[i] = true;  // mark that flash needs to be update
+                //store_char(&chars[i]);
             }
+            break;  // processsing done
         }
     }
 }
@@ -216,13 +232,11 @@ static void on_write(ble_evt_t const * p_ble_evt)
 
 static void mcs_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
 {
-    if (p_ble_evt == NULL)
-    {
+    if (p_ble_evt == NULL) {
         return;
     }
 
-    switch (p_ble_evt->header.evt_id)
-    {
+    switch (p_ble_evt->header.evt_id) {
         case BLE_GAP_EVT_CONNECTED:
             mcs_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             break;
@@ -426,6 +440,12 @@ uint32_t mcs_update()
 }
 
 
+uint32_t mcs_get_dist_coil2tail()
+{
+    return mcs_dist_coil2tail;
+}
+
+
 // called periodically from main loop to perform background & houskeeping tasks
 static void fds_poll()
 {
@@ -469,17 +489,35 @@ static void fds_poll()
                 chars[i].wr_cb();
             }
         }
+    } else {
+
+        // check if characteristics need to be stored in flash
+        for (int i=0; i<N_CHARS; i++) {
+            if (char_dirty[i] && chars[i].fds_store) {
+                // store_char returns false if the flash is still busy
+                if (store_char(&chars[i])) {
+                    // write initiated, clear dirty flag as this value is now written to flash (presuming everything works fine)
+                    char_dirty[i] = false;
+                }
+                break;
+            }
+        }
     }
 }
 
 
 // store a characteristic's value in flash 
-static void store_char(const struct char_config_s* char_p)
+static bool store_char(const struct char_config_s* char_p)
 {
     static fds_record_t rec = {0}; // must be static for th FDS lib
     fds_record_desc_t desc = {0};
     fds_find_token_t  tok = {0};
     ret_code_t rc;    
+
+    if (m_fds_write_in_progress) {
+        return false;
+    }
+    m_fds_write_in_progress = true;
 
     rec.file_id           = CONFIG_FILE;
     rec.key               = char_p->uuid;
@@ -505,7 +543,7 @@ static void store_char(const struct char_config_s* char_p)
         APP_ERROR_CHECK(rc);
     }
 
-    // FIXME: this is dangerours: another write could be started before the first finished, causing data gargabe because rec needs to be static.
+    return true;
 }
 
 
@@ -549,6 +587,7 @@ static void fds_evt_handler(fds_evt_t const * p_evt)
                 NRF_LOG_INFO("File ID:\t0x%04x",    p_evt->write.file_id);
                 NRF_LOG_INFO("Record key:\t0x%04x", p_evt->write.record_key);
             }
+            m_fds_write_in_progress = false;    // write access is done
         } break;
 
         case FDS_EVT_DEL_RECORD:

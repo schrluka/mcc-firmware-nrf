@@ -181,7 +181,7 @@ void l2_poll(void *p_context)
 
     log_cnt++;
     if (log_cnt == F_EMF_CTRL/2) {
-        NRF_LOG_INFO("p:%d  v:%d v_ref:%d  dist:%d\n", (int)pos, (int)ramps[0].v, (int)v_ref, (int)dist);
+        NRF_LOG_INFO("p:%d  v:%d v_ref:%d  dist:%d", (int)pos, (int)ramps[0].v, (int)v_ref, (int)dist);
         log_cnt = 0;
     }
 

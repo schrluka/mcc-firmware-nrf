@@ -13,10 +13,16 @@
 
 #include "nordic_common.h"
 #include "nrf.h"
+#include "nrf_sdh.h"
+#include "nrf_sdh_soc.h"
+#include "nrf_sdh_ble.h"
 #include "ble_hci.h"
 #include "ble_advdata.h"
 #include "ble_advertising.h"
+#include "app_error.h"
 #include "advertising.h"
+#include "model_car_ble_service.h"
+#include "main.h"
 
 
 /*******************************************************************************************************************************************
@@ -27,12 +33,29 @@
 static struct adv_status_data   adv_manuf_data_data;
 static ble_advdata_manuf_data_t adv_manuf_data;
 
+// advertised UUIDs
+static ble_uuid_t m_adv_uuids[] = {             /**< Universally unique service identifier we advertise */
+//  {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE},  // announcing two UUIDs raises an exception (too long for paket?)
+  {BLE_UUID_MODEL_CAR_SERVICE, BLE_UUID_TYPE_VENDOR_BEGIN}};  
+
+#define VALUE_TO_STRING(x) #x
+#define VALUE(x) VALUE_TO_STRING(x)
+#define VAR_NAME_VALUE(var) #var "="  VALUE(var)
+
+/* Some example here */
+#pragma message(VAR_NAME_VALUE(BLE_ADV_BLE_OBSERVER_PRIO))
+
+BLE_ADVERTISING_DEF(m_advertising);                                                 /**< Advertising module instance. */
+
+
 
 /*******************************************************************************************************************************************
 *   L O C A L   P R O T O T Y P E S
 */
 
 static void advertising_fill_manufacturer_data();
+
+static void on_adv_evt(ble_adv_evt_t ble_adv_evt);
 
 
 
@@ -116,7 +139,7 @@ void advertising_update(void)
 
 static void advertising_fill_manufacturer_data()
 {
-     // update the status message sent with broad cast messages when advertising
+     // update the status message sent with broadcast messages when advertising
     adv_manuf_data_data.pos = l2_get_pos();
     adv_manuf_data_data.speed = (int16_t)l2_get_speed();
     adv_manuf_data_data.u_bat = (int16_t)l2_get_u_bat();
@@ -131,4 +154,31 @@ static void advertising_fill_manufacturer_data()
     adv_manuf_data_data.dist = d;
     //adv_manuf_data_data.ref_speed = l2_get_ref_speed();
 
+}
+
+
+/**@brief Function for handling advertising events.
+ *
+ * @details This function will be called for advertising events which are passed to the application.
+ *
+ * @param[in] ble_adv_evt  Advertising event.
+ */
+static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
+{
+    uint32_t err_code;
+
+    switch (ble_adv_evt)
+    {
+        case BLE_ADV_EVT_FAST:
+            //err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
+            //APP_ERROR_CHECK(err_code);
+            break;
+        case BLE_ADV_EVT_IDLE:
+            //sleep_mode_enter();   // this would require a reset to get out of wakeup
+            // Note: the app keeps on scanning without connecting using the broadcasts to gain info about
+            // available devices
+            break;
+        default:
+            break;
+    }
 }

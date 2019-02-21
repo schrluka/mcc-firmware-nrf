@@ -74,15 +74,11 @@
 BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT);                                   /**< BLE NUS service instance. */
 NRF_BLE_GATT_DEF(m_gatt);                                                           /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                             /**< Context for the Queued Write module.*/
-BLE_ADVERTISING_DEF(m_advertising);                                                 /**< Advertising module instance. */
+
 
 
 static uint16_t   m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
 static uint16_t   m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;            /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
-// advertised UUIDs
-static ble_uuid_t m_adv_uuids[] = {             /**< Universally unique service identifier we advertise */
-//  {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE},  // announcing two UUIDs raises an exception (too long for advertising?)
-  {BLE_UUID_MODEL_CAR_SERVICE, BLE_UUID_TYPE_VENDOR_BEGIN}};  
 
 //static ble_uuid_t                       m_adv_uuids[] = {{BLE_UUID_MODEL_CAR_SERVICE, BLE_UUID_TYPE_VENDOR_BEGIN}};
 
@@ -311,32 +307,6 @@ static void sleep_mode_enter(void)
 }
 
 
-/**@brief Function for handling advertising events.
- *
- * @details This function will be called for advertising events which are passed to the application.
- *
- * @param[in] ble_adv_evt  Advertising event.
- */
-static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
-{
-    uint32_t err_code;
-
-    switch (ble_adv_evt)
-    {
-        case BLE_ADV_EVT_FAST:
-            err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
-            APP_ERROR_CHECK(err_code);
-            break;
-        case BLE_ADV_EVT_IDLE:
-            //sleep_mode_enter();   // this would require a reset to get out of wakeup
-            // Note: the app keeps on scanning without connecting using the broadcasts to gain info about
-            // available devices
-            break;
-        default:
-            break;
-    }
-}
-
 
 /**@brief Function for handling BLE events.
  *
@@ -490,11 +460,11 @@ void bsp_event_handler(bsp_event_t event)
         case BSP_EVENT_WHITELIST_OFF:
             if (m_conn_handle == BLE_CONN_HANDLE_INVALID)
             {
-                err_code = ble_advertising_restart_without_whitelist(&m_advertising);
+                /*err_code = ble_advertising_restart_without_whitelist(&m_advertising);
                 if (err_code != NRF_ERROR_INVALID_STATE)
                 {
                     APP_ERROR_CHECK(err_code);
-                }
+                }*/
             }
             break;
 

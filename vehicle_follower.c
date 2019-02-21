@@ -23,6 +23,7 @@
 #include "nrf_ble_scan.h"
 #include "app_error.h"
 
+#include "advertising.h"
 #include "main.h"
 #include "hw.h"
 
@@ -37,7 +38,7 @@
 
 struct vehicle_status {
     uint32_t                rx_time;  // time stamp of last status update, 0 means entry invalid
-    int32_t                  rssi;
+    int32_t                 rssi;
     ble_gap_addr_t          addr;
     struct adv_status_data  data;
 };

@@ -64,23 +64,30 @@
   <Watches active="0" update="Never"/>
  </Watch4>
  <Files>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" useBinaryEdit="0" left="0" path="model_car_ble_service.c" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="75" y="136" useTextEdit="1" useBinaryEdit="0" left="0" path="model_car_ble_service.c" selected="0" top="101" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="315" useTextEdit="1" useBinaryEdit="0" left="0" path="sdk/components/ble/ble_services/ble_nus/ble_nus.c" selected="0" top="269" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" useBinaryEdit="0" left="0" path="layer2.c" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="50" y="183" useTextEdit="1" useBinaryEdit="0" left="0" path="layer2.c" selected="1" top="168" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="336" useTextEdit="1" useBinaryEdit="0" left="0" path="hw.c" selected="0" top="300" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="41" useTextEdit="1" useBinaryEdit="0" left="0" path="layer2.h" selected="0" top="0" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="34" useTextEdit="1" useBinaryEdit="0" left="0" path="hw.h" selected="0" top="0" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="10" useTextEdit="1" useBinaryEdit="0" left="0" path="layer1.h" selected="0" top="0" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="327" useTextEdit="1" useBinaryEdit="0" left="0" path="lococo.c" selected="0" top="302" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="107" useTextEdit="1" useBinaryEdit="0" left="0" path="vehicle_follower.c" selected="0" top="79" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="17" y="26" useTextEdit="1" useBinaryEdit="0" left="0" path="vehicle_follower.c" selected="0" top="2" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="27" useTextEdit="1" useBinaryEdit="0" left="0" path="nuts_bolts.h" selected="0" top="0" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="79" useTextEdit="1" useBinaryEdit="0" left="0" path="layer1.c" selected="0" top="32" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="148" useTextEdit="1" useBinaryEdit="0" left="0" path="config/sdk_config.h" selected="0" top="104" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="28" useTextEdit="1" useBinaryEdit="0" left="0" path="main.h" selected="0" top="0" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="41" useTextEdit="1" useBinaryEdit="0" left="0" path="main.c" selected="0" top="19" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="34" y="12749" useTextEdit="1" useBinaryEdit="0" left="0" path="config/sdk_config.h" selected="0" top="12673" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="29" y="10" useTextEdit="1" useBinaryEdit="0" left="0" path="main.h" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="568" useTextEdit="1" useBinaryEdit="0" left="0" path="main.c" selected="0" top="606" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="359" useTextEdit="1" useBinaryEdit="0" left="0" path="sdk/components/libraries/pwr_mgmt/nrf_pwr_mgmt.c" selected="0" top="314" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="118" useTextEdit="1" useBinaryEdit="0" left="0" path="advertising.c" selected="1" top="77" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="19" useTextEdit="1" useBinaryEdit="0" left="0" path="advertising.h" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="24" y="17" useTextEdit="1" useBinaryEdit="0" left="0" path="advertising.c" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="14" useTextEdit="1" useBinaryEdit="0" left="0" path="advertising.h" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="16" useTextEdit="1" useBinaryEdit="0" left="0" path="model_car_ble_service.h" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" useBinaryEdit="0" left="0" path="car-ctrl-vehicle.emProject" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="20" y="76" useTextEdit="1" useBinaryEdit="0" left="0" path="sdk/components/ble/ble_advertising/ble_advertising.h" selected="0" top="25" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="50" useTextEdit="1" useBinaryEdit="0" left="0" path="sdk/components/libraries/util/app_error.c" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" useBinaryEdit="0" left="0" path="sdk/components/libraries/util/app_error.h" selected="0" top="112" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" useBinaryEdit="0" left="0" path="sdk/components/softdevice/common/nrf_sdh.h" selected="0" top="20" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" useBinaryEdit="0" left="0" path="sdk/components/softdevice/common/nrf_sdh_ble.h" selected="0" top="28" codecName="Default"/>
  </Files>
- <ARMCrossStudioWindow activeProject="car-ctrl-vehicle" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" debugSearchFileMap="" fileDialogInitialDirectory="D:/e-/mcc/mcc-nrf-scan-logger/config" debugSearchPath="" autoConnectCapabilities="3199"/>
+ <ARMCrossStudioWindow activeProject="car-ctrl-vehicle" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" debugSearchFileMap="" fileDialogInitialDirectory="D:/e-/mcc/mcc-nrf-scan-logger/config" debugSearchPath="" autoConnectCapabilities="3711"/>
 </session>

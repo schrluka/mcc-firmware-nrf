@@ -13,6 +13,7 @@ uint32_t mcs_init();
 
 uint32_t mcs_update();
 
+uint32_t mcs_get_dist_coil2tail();
 
 
 #endif
