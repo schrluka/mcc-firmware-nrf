@@ -23,6 +23,7 @@
 #include "app_timer.h"
 #include "nrf_log.h"
 #include "vehicle_follower.h"
+#include "advertising.h"
 
 
 
@@ -78,6 +79,9 @@ static struct pi distance_ctrl;
 
 static uint32_t dist = 0;
 
+// Id of the track (road segment) on which this vehicle is currently driving
+static uint8_t track_id = 0;
+
 APP_TIMER_DEF(l2_timer);
 
 
@@ -102,6 +106,7 @@ void l2_init()
     pos = 0;
     n_ramps = 0;
     n_tasks = 0;
+    track_id = 0;   // 0 is the default track.
 
     // schedule initial acceleration
     l2_sched_speed_ramp(70, 0, 30);    // 96mm/s is 30km/h, accelerate over next 30cm
@@ -139,7 +144,6 @@ void l2_poll(void *p_context)
     execute_l2 = false; // clear flag, we are working now, can be set again by L1 interrupt soon
 
     // following code runs with a repetition rate of F_EMF_CTRL 
-
 
     // change max speed according to position dependent speed ramps
     if (n_ramps > 0) {
@@ -189,17 +193,20 @@ void l2_poll(void *p_context)
     for (int i=0; i<n_tasks; i++) {
         if (p_tasks[i].start > pos)
             break;  // this (and all following, because p_tasks is sorted) starts in the future
+        
+        //printf("running task %d\n", i);
+        task_run(&p_tasks[i]);
+
         // check the task's end
         if (p_tasks[i].stop <= pos) {
             task_stop(&p_tasks[i]);  // finish up
             // move other tasks down in the array (no gaps)
             n_tasks--;
-            for (int j=i; j<n_tasks; j++)
+            for (int j=i; j<n_tasks; j++) {
                 p_tasks[j] = p_tasks[j+1];
+            }
             continue;
         }
-        //printf("running task %d\n", i);
-        task_run(&p_tasks[i]);
     }
 
     lpf1Update(&u_bat_flt, l1_get_u_bat());
@@ -293,7 +300,7 @@ int l2_sched_pos_task (const struct p_task *t)
         NRF_LOG_INFO("task stop before start");
         return 2;
     }
-    // keep tasks ordered, ascending by position
+    // keep tasks ordered, ascending by start position
     int ind = 0;
     for (int i=n_tasks-1; i>=0; i--) {
         if (p_tasks[i].start < t->start) {
@@ -437,6 +444,28 @@ void l2_set_max_speed(uint16_t v)
 }
 
 
+// update the track id at which this vehicle is right now
+void l2_set_track_id(int id)
+{
+    // map unkown / illegal track id values to value 0
+    if (id < 0) {
+        id = 0;
+    }
+    if (id > 255) {
+        id = 0;
+    }
+    track_id = id;
+    // tell advertising that the track id changes
+    advertising_schedule_track_id_change(id);
+}
+
+
+uint8_t l2_get_track_id()
+{
+    return track_id;
+}
+
+
 // perform final actions of a task once the stop position has been reached
 static void task_stop(struct p_task *t)
 {
@@ -476,5 +505,11 @@ static void task_run(struct p_task *t)
                 hw_toggle_led(3);
             }
             break;
+        case T_SET_TRACK_ID:
+        {
+            int id = t->data;
+            l2_set_track_id(id);
+            break;
+        }
     }
 }

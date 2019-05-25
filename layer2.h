@@ -15,12 +15,12 @@
 extern volatile bool execute_l2;
 
 // position depedent tasks which can be scheduled with layer 2
-enum task_id {T_TURN_LEFT, T_TURN_RIGHT};
+enum task_id {T_TURN_LEFT, T_TURN_RIGHT, T_SET_TRACK_ID};
 
 struct p_task {
     enum task_id    id;     // what do we have to do
-    int start;              // where should it start
-    int stop;               // where should it end
+    int start;              // pos (in cm) where should it start
+    int stop;               // pos (in cm) where should it end, it this is < start, it will run once
     int data;               // task depedent
 };
 
@@ -50,6 +50,10 @@ void l2_update_pos_est (const struct lococo_tag* tag, int cm_delta);
 int l2_sched_speed_ramp (int speed, int start_pos, int dist);
 
 int l2_sched_pos_task (const struct p_task *t);
+
+void l2_set_track_id(int id);
+
+uint8_t l2_get_track_id();
 
 #endif
 

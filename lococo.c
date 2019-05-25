@@ -50,13 +50,14 @@
 #define MSG_TIMEOUT     4
 
 
-#define CMD_OP_POS      0
-#define CMD_OP_DIST     1
-#define CMD_OP_V_IN     2
-#define CMD_OP_V_FROM   3
+#define CMD_OP_POS          0
+#define CMD_OP_DIST         1
+#define CMD_OP_V_IN         2
+#define CMD_OP_V_FROM       3
 #define CMD_OP_TURN_LEFT    4
 #define CMD_OP_TURN_RIGHT   5
 #define CMD_OP_BAT_STOP     6
+#define CMD_OP_SET_TRACK_ID 7
 
 
 
@@ -376,8 +377,14 @@ static void process_message(uint8_t* p_msg, uint32_t len, uint32_t tick)
             bat_stop = cmd_p->val.u16;
             NRF_LOG_INFO("loco3 bat stop: %d", bat_stop);
             break;
+        case CMD_OP_SET_TRACK_ID:
+            task.id = T_SET_TRACK_ID;
+            task.start = l2_get_pos() + cmd_p->val.u8[0];
+            task.stop = 0;  // ensures that the task runs only once
+            task.data = cmd_p->val.u8[1];   // pass new track id to task struct
+            NRF_LOG_INFO("Track Id %d in %d cm", (int)cmd_p->val.u8[1], (int)cmd_p->val.u8[0]);
         default:
-            NRF_LOG_INFO("uknown opcode %d",cmd_p->op);
+            NRF_LOG_INFO("uknown opcode %d", cmd_p->op);
             continue;
         }
 

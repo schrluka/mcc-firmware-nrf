@@ -97,7 +97,7 @@ void vf_init()
 // within range
 uint32_t vf_get_dist_2_lead(int32_t current_pos)
 {
-    uint32_t now = hw_get_tick(); // remember when this message was received (time stamp in ms)
+    uint32_t now = hw_get_tick(); // timestamp in ms
 
     uint32_t ind;
     uint32_t min_dist = UINT32_MAX; // for searching the minimum
@@ -110,9 +110,14 @@ uint32_t vf_get_dist_2_lead(int32_t current_pos)
             continue;   // entry is empty or too old.
         }        
 
+        if (v_p->data.track_id != l2_get_track_id()) {
+            // vehicle is on a different track, igonore it
+            continue;
+        }
+
         int32_t dist = get_est_vehicle_pos(v_p) - current_pos; // correct if other vehicle position did not jump recently
         int32_t dist_ch = dist - v_p->data.delta_pos;   // assuming the other did change position
-        // TODO: check track IDs
+        
         if ((dist < 0) && (dist_ch < 0)) {
             NRF_LOG_DEBUG("VF: %02x:%02x:%02x is behind.", v_p->addr.addr[2], v_p->addr.addr[1], v_p->addr.addr[0]);
             continue;
@@ -239,7 +244,7 @@ static void process_scan_resp(ble_gap_evt_adv_report_t const * p_report)
     p_data += 2;
     len -= 2;
 
-    if (company_identifier != 0xFFFF) {  // we use 'invalid company' as ID
+    if (company_identifier != 0xFFFF) {  // we use 'invalid company' (0xFFFF) as ID
         return;
     }
 
@@ -286,7 +291,7 @@ static void process_scan_resp(ble_gap_evt_adv_report_t const * p_report)
 }
 
 
-// compare to gap (i.e. 48 bit MAC) addresses
+// compare two GAP (i.e. 48 bit MAC) addresses
 static bool compare_gap_addrs(const ble_gap_addr_t * a1, const ble_gap_addr_t * a2)
 {
     for (int i=0; i<BLE_GAP_ADDR_LEN; i++) {
@@ -298,13 +303,13 @@ static bool compare_gap_addrs(const ble_gap_addr_t * a1, const ble_gap_addr_t * 
 }
 
 
-// returns an estimate of the current position of vehicle v_p
+// returns an estimate of the current position (in cm) of vehicle v_p
 static int32_t get_est_vehicle_pos(const struct vehicle_status * v_p)
 {
     ASSERT(v_p != NULL);
     uint32_t delta_t = hw_get_tick() - v_p->rx_time;    // time delta since last report
     // calculate how far the vehicle travelled since we received its last status report
-    uint32_t delta_pos = delta_t * v_p->data.speed / 10000; // div by to to scale ms -> s and mm -> cm
+    uint32_t delta_pos = delta_t * v_p->data.speed / 10000; // div by 10'000 to scale ms -> s and mm -> cm
     // this yields our guess where it is now.
     return v_p->data.pos + delta_pos;
 }

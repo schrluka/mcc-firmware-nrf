@@ -22,5 +22,7 @@ void advertising_start(void);
 
 void advertising_update(void);
 
+void advertising_schedule_track_id_change(uint8_t new_track_id);
+
 
 #endif

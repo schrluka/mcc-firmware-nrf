@@ -7,7 +7,7 @@
 *
 * all rights reserved
 *
-* BLE Advertising: broadcasts live status data (pos, speed, etc) as customer specific advertising data.
+* BLE Advertising: broadcasts live status data (pos, speed, etc.) as customer specific advertising data.
 *
 *******************************************************************************************************************************************/
 
@@ -23,6 +23,7 @@
 #include "advertising.h"
 #include "model_car_ble_service.h"
 #include "main.h"
+#include "layer2.h"
 
 
 /*******************************************************************************************************************************************
@@ -35,7 +36,7 @@ static ble_advdata_manuf_data_t adv_manuf_data;
 
 // advertised UUIDs
 static ble_uuid_t m_adv_uuids[] = {             /**< Universally unique service identifier we advertise */
-//  {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE},  // announcing two UUIDs raises an exception (too long for paket?)
+//  {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE},  // announcing two UUIDs raises an exception (too long for packet?)
   {BLE_UUID_MODEL_CAR_SERVICE, BLE_UUID_TYPE_VENDOR_BEGIN}};  
 
 #define VALUE_TO_STRING(x) #x
@@ -46,6 +47,10 @@ static ble_uuid_t m_adv_uuids[] = {             /**< Universally unique service 
 #pragma message(VAR_NAME_VALUE(BLE_ADV_BLE_OBSERVER_PRIO))
 
 BLE_ADVERTISING_DEF(m_advertising);                                                 /**< Advertising module instance. */
+
+static int32_t track_change_pos = 0;
+static uint8_t next_track_id = 0;
+static bool track_change_pending = false;
 
 
 
@@ -123,7 +128,7 @@ void advertising_update(void)
     static ble_advdata_t srdata = {0}; // used to collect data for the encoder 
     uint32_t err_code;
 
-   advertising_fill_manufacturer_data();
+    advertising_fill_manufacturer_data();
 
     //memset(&srdata, 0, sizeof(srdata));
     srdata.include_ble_device_addr = true;
@@ -137,10 +142,20 @@ void advertising_update(void)
 }
 
 
+void advertising_schedule_track_id_change(uint8_t new_track_id)
+{
+    // remember that the track id that we broadcast has to change once our tail reaches the position at which we received the function call
+    track_change_pos = l2_get_pos() + mcs_get_dist_coil2tail();
+    next_track_id = new_track_id;
+    track_change_pending = true;
+}
+
+
 static void advertising_fill_manufacturer_data()
 {
-     // update the status message sent with broadcast messages when advertising
-    adv_manuf_data_data.pos = l2_get_pos();
+    int32_t pos = l2_get_pos();
+    // update the status message sent with broadcast messages when advertising
+    adv_manuf_data_data.pos = pos - mcs_get_dist_coil2tail();  // report the position of our tail
     adv_manuf_data_data.speed = (int16_t)l2_get_speed();
     adv_manuf_data_data.u_bat = (int16_t)l2_get_u_bat();
     adv_manuf_data_data.delta_pos = l2_get_pos_delta();
@@ -152,8 +167,13 @@ static void advertising_fill_manufacturer_data()
         d = -128;
     }
     adv_manuf_data_data.dist = d;
-    //adv_manuf_data_data.ref_speed = l2_get_ref_speed();
 
+    if (track_change_pending && (pos >= track_change_pos)) {
+        adv_manuf_data_data.track_id = next_track_id;
+        track_change_pending = false;
+    }
+
+    //adv_manuf_data_data.ref_speed = l2_get_ref_speed();
 }
 
 
@@ -170,11 +190,9 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     switch (ble_adv_evt)
     {
         case BLE_ADV_EVT_FAST:
-            //err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
-            //APP_ERROR_CHECK(err_code);
+            
             break;
         case BLE_ADV_EVT_IDLE:
-            //sleep_mode_enter();   // this would require a reset to get out of wakeup
             // Note: the app keeps on scanning without connecting using the broadcasts to gain info about
             // available devices
             break;
