@@ -25,7 +25,7 @@ void l1_periodic (float i_mot, float emf, float u_bat);
 
 int32_t l1_get_emf();
 
-int32_t L1getIRef();
+int32_t l1_get_i_ref();
 
 uint32_t l1_get_emf_pos();
 
@@ -36,5 +36,7 @@ uint32_t l1_get_u_bat();
 void l1_set_emf_ref(int32_t emf);
 
 int32_t l1_get_emf_ref();
+
+void l1_set_direction(bool fwd);
 
 #endif

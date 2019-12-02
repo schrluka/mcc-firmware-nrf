@@ -84,6 +84,19 @@ static uint8_t track_id = 0;
 
 APP_TIMER_DEF(l2_timer);
 
+// Gamma correction table from: http://tronicslab.com/gamma-correction-pulsing-leds/
+const uint16_t l2_gamma_table[64] = 
+{ 
+  0,    0,    1,    2,    4,    6,    9,    13,  
+  16,   21,   26,   31,   37,   44,   51,   58,  
+  66,   74,   84,   93,   103,  114,  125,  136,  
+  148,  161,  174,  188,  202,  217,  232,  248,  
+  264,  281,  298,  316,  334,  353,  372,  392,  
+  412,  433,  455,  477,  499,  522,  545,  569,  
+  594,  619,  644,  670,  697,  724,  752,  780,  
+  808,  837,  867,  897,  928,  959,  991,  1023  
+};
+
 
 
 /**********************************************************************************************
@@ -145,6 +158,9 @@ void l2_poll(void *p_context)
 
     // following code runs with a repetition rate of F_EMF_CTRL 
 
+    
+    int8_t requested_direction = mcs_get_direction();
+       
     // change max speed according to position dependent speed ramps
     if (n_ramps > 0) {
          // check if ramp has started
@@ -165,21 +181,31 @@ void l2_poll(void *p_context)
             if (v > v_max) {
                 v = v_max;
             }
-            //set_speed(v);
         }
     }
 
     // distance control (to vehicle in front)
     dist = vf_get_dist_2_lead(pos);
-    distance_ctrl.max = ramps[0].v; // ramp gives our allowed max. speed
+    if (requested_direction == MCS_STOP) {
+        // stop vehicle
+        distance_ctrl.max = 0;
+    } else {
+        // keep going
+        if (requested_direction == MCS_FWD) {
+            l1_set_direction(true);
+        } else {
+            l1_set_direction(false);
+        }
+        distance_ctrl.max = ramps[0].v; // ramp gives our allowed max. speed
+    }
     int32_t v_ref;
-    const int32_t ref_distance = 20;
+    const int32_t ref_distance = (int32_t)mcs_get_ref_distance(); // in cm 
     if (dist > 0) {
         // there is a vehicle in front of us, use a controller to keep a minimum distance
         v_ref = update_pi(&distance_ctrl, -(ref_distance - dist));
     } else {
-        // no vehicle in front
-        v_ref = update_pi(&distance_ctrl, 20);
+        // no vehicle in front, keep updating controller with a positive distance to stay at the speed limit
+        v_ref = update_pi(&distance_ctrl, ref_distance);
     }
     set_speed(v_ref);    
 
@@ -419,8 +445,9 @@ int32_t l2_get_speed()
     int32_t emf = l1_get_emf();
     float f = emf * 10*F_EMF_CTRL * cm_per_lsb;
     int32_t s = (int32_t)f;
-    if (s < 0)  // TODO: direction reversal
+    if (s < 0) {  // TODO: direction reversal
         s = 0;
+    }
     return s;
 }
 
@@ -429,6 +456,7 @@ int32_t l2_get_ref_speed()
 {
     return ref_speed;
 }
+
 
 // set allowed top speed in mm/s
 void l2_set_max_speed(uint16_t v)
@@ -464,6 +492,17 @@ uint8_t l2_get_track_id()
 {
     return track_id;
 }
+
+
+// Set LED brightness value using gamma correction. 
+// The 8 bit brightness value is mapped to 64 steps (gamma correction)
+void l2_set_brigthness(uint8_t led, uint8_t value)
+{
+    uint32_t duty = l2_gamma_table[value>>2];
+    hw_set_led_duty(led, duty);
+}
+
+
 
 
 // perform final actions of a task once the stop position has been reached

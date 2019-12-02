@@ -32,6 +32,10 @@
 // max duty cycle value for LEDs
 #define LED_PWM_TOP 1023
 
+#define LED_HEAD_LIGHT  0
+#define LED_BACK_LIGHT  1
+#define LED_TURN_LEFT   2
+#define LED_TURN_RIGHT  3
 
 #define PIN_LOCO3_RX    19
 #define PIN_LOCO3_TX    17
@@ -71,6 +75,7 @@ void hw_set_pwm_duty(uint32_t d);
 
 void hw_dis_pwm();
 
-void hw_en_pwm();
+void hw_en_pwm(bool fwd);
+
 
 #endif

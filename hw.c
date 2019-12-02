@@ -42,10 +42,10 @@
 #define PIN_PWR_BTN     22
 #define PIN_REED        23
 
-#define LED_HEAD        20
-#define LED_BACK        15
-#define LED_LEFT        14
-#define LED_RIGHT       13
+#define PIN_LED_HEAD        20
+#define PIN_LED_BACK        15
+#define PIN_LED_LEFT        14
+#define PIN_LED_RIGHT       13
 
 // adc channels (not pin numbers) of analog inputs
 #define AIN_I_SENS_A    NRF_SAADC_INPUT_AIN0
@@ -187,10 +187,10 @@ void hw_init()
         // use forward mode as default config
         .output_pins =
         {
-            LED_HEAD,
-            LED_BACK,
-            LED_LEFT,
-            LED_RIGHT, // | NRF_DRV_PWM_PIN_INVERTED
+            PIN_LED_HEAD,
+            PIN_LED_BACK,
+            PIN_LED_LEFT,
+            PIN_LED_RIGHT, // | NRF_DRV_PWM_PIN_INVERTED
         },
         .irq_priority = 7,  // 7 is lowest priority, we don't use interrupts anyway
         .base_clock   = NRF_PWM_CLK_16MHz,
@@ -203,12 +203,12 @@ void hw_init()
     APP_ERROR_CHECK(err_code);
     nrf_drv_pwm_simple_playback(&m_pwm1, &led_pwm_seq, 1, NRF_DRV_PWM_FLAG_LOOP);
 
-    hw_set_led(0, 1);   // head light on
-    hw_set_led(2, 0);   // turn signal off
-    hw_set_led(3, 0);   // turn signal off
-    hw_set_led_duty(1,LED_PWM_TOP/3);   // lower back light
-    hw_set_led_duty(2,LED_PWM_TOP-1);    // full power turn lights
-    hw_set_led_duty(3,LED_PWM_TOP-1);
+    hw_set_led(LED_HEAD_LIGHT, 1);   // head light on
+    hw_set_led(LED_TURN_LEFT, 0);   // turn signal off
+    hw_set_led(LED_TURN_RIGHT, 0);   // turn signal off
+    hw_set_led_duty(LED_BACK_LIGHT, LED_PWM_TOP/3);   // lower back light
+    hw_set_led_duty(LED_TURN_LEFT, LED_PWM_TOP-1);    // full power turn lights
+    hw_set_led_duty(LED_TURN_RIGHT, LED_PWM_TOP-1);
 }
 
 
@@ -283,7 +283,7 @@ void hw_dis_pwm(void)
 
 
 // reenable motor PWM
-void hw_en_pwm()
+void hw_en_pwm(bool fwd)
 {
     // (re)configure pwm unit pins
     uint32_t out_pins[NRF_PWM_CHANNEL_COUNT] = {
@@ -291,6 +291,8 @@ void hw_en_pwm()
             PIN_PWM_LO_A, // | NRF_DRV_PWM_PIN_INVERTED, // channel 1
             PIN_PWM_HI_B, // | NRF_DRV_PWM_PIN_INVERTED, // channel 2
             PIN_PWM_LO_B}; // | NRF_DRV_PWM_PIN_INVERTED  // channel 3
+
+    forward = fwd;  // TODO: protection against reversal at full speed
 
     // make sure only one half bridge is active
     if (forward) {
@@ -323,11 +325,13 @@ void hw_en_pwm()
 void hw_set_pwm_duty(uint32_t d)
 {
     static uint32_t last_d = 0;  // used to check whether d increased or decreased since last call
-    if (d > pwm_top-1)
+    if (d > pwm_top-1) {
         d = pwm_top-1;
+    }
     bool inc = true;    // assume d increased (need this to ensure proper dead time in half bridge
-    if (d < last_d)
+    if (d < last_d) {
         inc = false;
+    }
 
     if (forward) {
         if (inc){
@@ -570,10 +574,10 @@ static void update_leds()
 {
 
     uint32_t out_pins[NRF_PWM_CHANNEL_COUNT] = {
-            LED_HEAD,
-            LED_BACK,
-            LED_LEFT,
-            LED_RIGHT};
+            PIN_LED_HEAD,
+            PIN_LED_BACK,
+            PIN_LED_LEFT,
+            PIN_LED_RIGHT};
 
     for (int i=0; i<NRF_PWM_CHANNEL_COUNT; i++) {
         if (!(leds&(1<<i))) {

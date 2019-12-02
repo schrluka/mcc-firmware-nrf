@@ -130,11 +130,6 @@
       <file file_name="sdk/components/libraries/log/src/nrf_log_frontend.c" />
       <file file_name="sdk/components/libraries/log/src/nrf_log_str_formatter.c" />
     </folder>
-    <folder Name="nRF-SoftDevice">
-      <file file_name="sdk/components/softdevice/common/nrf_sdh.c" />
-      <file file_name="sdk/components/softdevice/common/nrf_sdh_ble.c" />
-      <file file_name="sdk/components/softdevice/common/nrf_sdh_soc.c" />
-    </folder>
     <file file_name="printf_retarget.h" />
     <file file_name="hw.h" />
     <file file_name="layer1.h" />
@@ -148,6 +143,11 @@
     <file file_name="vehicle_follower.h" />
     <file file_name="advertising.c" />
     <file file_name="advertising.h" />
+    <folder Name="nRF-SoftDevice">
+      <file file_name="sdk/components/softdevice/common/nrf_sdh.c" />
+      <file file_name="sdk/components/softdevice/common/nrf_sdh_ble.c" />
+      <file file_name="sdk/components/softdevice/common/nrf_sdh_soc.c" />
+    </folder>
   </project>
   <configuration
     Name="Debug"

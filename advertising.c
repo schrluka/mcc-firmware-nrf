@@ -24,6 +24,7 @@
 #include "model_car_ble_service.h"
 #include "main.h"
 #include "layer2.h"
+#include "layer1.h"
 
 
 /*******************************************************************************************************************************************
@@ -130,7 +131,6 @@ void advertising_update(void)
 
     advertising_fill_manufacturer_data();
 
-    //memset(&srdata, 0, sizeof(srdata));
     srdata.include_ble_device_addr = true;
     srdata.p_manuf_specific_data = &adv_manuf_data;
 
@@ -167,6 +167,14 @@ static void advertising_fill_manufacturer_data()
         d = -128;
     }
     adv_manuf_data_data.dist = d;
+    d = l1_get_i_ref();
+    if (d < 0) {
+        d = 0;
+    }
+    if (d > 255) {
+        d = 255;
+    }
+    adv_manuf_data_data.i_ref = (uint8_t)d;
 
     if (track_change_pending && (pos >= track_change_pos)) {
         adv_manuf_data_data.track_id = next_track_id;

@@ -175,7 +175,7 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 
         // TODO: do something with data coming from host (eg. phone)
         // for now just echo data back to the sender
-        err_code = ble_nus_data_send(&m_nus, p_evt->params.rx_data.p_data, &p_evt->params.rx_data.length, m_conn_handle);
+        err_code = ble_nus_data_send(&m_nus, (void*)p_evt->params.rx_data.p_data, &p_evt->params.rx_data.length, m_conn_handle);
         if ((err_code != NRF_ERROR_INVALID_STATE) && (err_code != NRF_ERROR_RESOURCES) && (err_code != NRF_ERROR_NOT_FOUND))
         {
             APP_ERROR_CHECK(err_code);
@@ -526,9 +526,6 @@ static void idle_state_handle(void)
 
 
 
-
-
-
 // shutdown system and turn power off
 void power_off()
 {
@@ -657,7 +654,7 @@ int main(void)
 
             // check for end of battery
             int u_bat = l2_get_u_bat();
-            if (u_bat < 2900) {
+            if (u_bat < 3000) {
                 // battery is below first limit, turn of lights to save power
                 hw_set_led(0,0);   // headligth
                 hw_set_led(1,0);   // backlight

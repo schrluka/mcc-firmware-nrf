@@ -12,7 +12,8 @@ struct adv_status_data {
     int32_t pos;    // vehicle position in cm
     int32_t delta_pos; 
     int8_t  track_id; // to identify tracks
-    int8_t  dist;
+    int8_t  dist;      // distance to vehicle in front in cm
+    uint8_t i_ref;    // motor current reference in mA
 } __attribute__((packed));
 
 

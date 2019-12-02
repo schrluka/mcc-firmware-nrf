@@ -50,6 +50,9 @@ static struct pi current_ctrl;
 // speed controller, output is the motor current in mA
 static struct pi speed_ctrl;
 
+// requested direction
+static bool l1_direction_forward = true;
+
 
 
 /*******************************************************************************************************************************************
@@ -89,6 +92,8 @@ void l1_init()
 void l1_periodic (float i_mot, float emf, float u_bat)
 {
     static int u_ctrl_cnt = 0;  // counter for slower speed controller
+    static bool forward = true; // default assumption: running forward
+
 
     int32_t I;
     int32_t d;
@@ -114,7 +119,7 @@ void l1_periodic (float i_mot, float emf, float u_bat)
         // integrate back emf, we use this as an estimation of the vehicle position
         emf_pos += u_emf;
 
-        hw_en_pwm();
+        hw_en_pwm(l1_direction_forward);
         execute_l2 = true;  // signal that we need an update of the speed ref during ramps
     }
 
@@ -156,7 +161,7 @@ int32_t l1_get_emf()
 }
 
 
-int32_t L1getIRef()
+int32_t l1_get_i_ref()
 {
 	int32_t s;
     //uint8_t nested;
@@ -214,6 +219,9 @@ int32_t l1_get_emf_ref()
 }
 
 
-
+void l1_set_direction(bool fwd)
+{
+    l1_direction_forward = fwd; // TODO: protection against sudden reversal
+}
 
 

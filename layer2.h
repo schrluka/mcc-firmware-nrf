@@ -55,5 +55,8 @@ void l2_set_track_id(int id);
 
 uint8_t l2_get_track_id();
 
+void l2_set_brigthness(uint8_t led, uint8_t value);
+
+
 #endif
 

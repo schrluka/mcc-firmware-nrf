@@ -23,8 +23,10 @@
 #include "fds.h"
 #include "nrf_log.h"
 
+#include "hw.h"
 #include "layer2.h"
 #include "model_car_ble_service.h"
+
 
 
 
@@ -45,11 +47,6 @@
 
 // total number of characteristics we have
 #define N_CHARS      (sizeof(chars)/sizeof(chars[0]))
-
-// values for mcs_direction
-#define MCS_FWD     0
-#define MCS_STOP    1
-#define MCS_BWD     2
 
 
 // Additional BLE UUIDs not defined by nordic, see https://www.bluetooth.com/specifications/gatt
@@ -120,6 +117,8 @@ void mcs_direction_written();
 
 static void mcs_v_max_written();
 
+static void mcs_update_led_brightness();
+
 static void fds_poll();
 
 static bool store_char(const struct char_config_s* char_p);
@@ -135,11 +134,16 @@ static volatile int16_t mcs_speed   = 0;    // measured vehicle speed in mm/sec
 static volatile uint16_t mcs_u_bat  = 0;    // battery voltage in mV
 static volatile int32_t mcs_pos    = 0;     // vehicle position in cm
 static volatile int8_t mcs_direction = MCS_FWD; // which direction we drive
-static volatile int8_t minmax_direction[2] = {0,2};
+static const int8_t minmax_direction[2] = {0,2};
 
 static volatile uint16_t mcs_v_max = 255;     // max. speed in mm/s
 
-static volatile uint8_t mcs_dist_coil2tail = 10;    // distance loco3 coil to end of vehicle in cm
+static volatile uint8_t mcs_dist_coil2tail = 12;    // distance between loco3 coil and end of vehicle in cm
+static volatile uint8_t mcs_ref_distance = 5;       // setpoint value for distance controller when following a vehicle in front of us
+
+static volatile uint8_t mcs_dim_head = 255;     // brightness setting of head light 
+static volatile uint8_t mcs_dim_turn = 255;     // brightness setting of turn lights 
+static volatile uint8_t mcs_dim_back = 100;     // brightness setting of back light
 
 
 // information needed to register all characteristics with the softdevice
@@ -155,8 +159,16 @@ const struct char_config_s chars[] = {
         .wr_cb=&mcs_v_max_written, .unit=UNIT_M_PER_S, .exp=-3, .fds_store=true},
     {.uuid=0xBE05, .we=true, .p_value=(void*)&mcs_dist_coil2tail, .len=sizeof(mcs_dist_coil2tail),
         .unit=UNIT_M, .exp=-2, .fds_store=true},
-
+    {.uuid=0xBE06, .we=true, .p_value=(void*)&mcs_ref_distance, .len=sizeof(mcs_ref_distance),
+        .unit=UNIT_M, .exp=-2, .fds_store=true},
+    {.uuid=0xBE07, .we=true, .p_value=(void*)&mcs_dim_head, .len=sizeof(mcs_dim_head),
+        .wr_cb=&mcs_update_led_brightness, .unit=UNIT_1, .exp=0, .fds_store=true},
+    {.uuid=0xBE08, .we=true, .p_value=(void*)&mcs_dim_turn, .len=sizeof(mcs_dim_turn),
+        .wr_cb=&mcs_update_led_brightness, .unit=UNIT_1, .exp=0, .fds_store=true},
+    {.uuid=0xBE09, .we=true, .p_value=(void*)&mcs_dim_back, .len=sizeof(mcs_dim_back),
+        .wr_cb=&mcs_update_led_brightness, .unit=UNIT_1, .exp=0, .fds_store=true},
 };
+
 
 // set to true if the char with the same index was changed in RAM and needs to be updated in flash
 static bool char_dirty[N_CHARS] = {0};
@@ -211,6 +223,8 @@ static void on_write(ble_evt_t const * p_ble_evt)
         }
     }
     else */
+    NRF_LOG_INFO("MCS: on_write for 0x%04x", p_evt_write->uuid.uuid);
+
     // scan which mcs was written
     for (size_t i=0; i<N_CHARS; i++) {
         if ((p_evt_write->handle == mcs_char_handles[i].value_handle)) {
@@ -220,9 +234,8 @@ static void on_write(ble_evt_t const * p_ble_evt)
             }
             // store value in flash?
             if (chars[i].fds_store) {
-                //NRF_LOG_INFO("storing updated value in flash");
+                NRF_LOG_INFO("storing updated value in flash");
                 char_dirty[i] = true;  // mark that flash needs to be update
-                //store_char(&chars[i]);
             }
             break;  // processsing done
         }
@@ -246,6 +259,7 @@ static void mcs_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
             // TODO: potentially start a flash garbage collection here?
             break;
         case BLE_GATTS_EVT_WRITE:
+            NRF_LOG_INFO("BLE_GATTS_EVT_WRITE");
             on_write(p_ble_evt);
             break;
         default:
@@ -446,6 +460,18 @@ uint32_t mcs_get_dist_coil2tail()
 }
 
 
+uint32_t mcs_get_ref_distance()
+{
+    return mcs_ref_distance;
+}
+
+
+int8_t mcs_get_direction()
+{
+    return mcs_direction;
+}
+
+
 // called periodically from main loop to perform background & houskeeping tasks
 static void fds_poll()
 {
@@ -531,6 +557,7 @@ static bool store_char(const struct char_config_s* char_p)
     if (rc == FDS_SUCCESS)
     {
         // entry exists, update it
+        NRF_LOG_INFO("updating flash entry for 0x%04x", (unsigned long)(char_p->uuid));
         rc = fds_record_update(&desc, &rec);
         APP_ERROR_CHECK(rc);
     }
@@ -551,7 +578,6 @@ static bool store_char(const struct char_config_s* char_p)
 void mcs_direction_written()
 {
     NRF_LOG_INFO("mcs_direction: %d", (int)mcs_direction);
-    // TODO: interface with layer 2 to set the new direction
 }
 
 
@@ -559,6 +585,16 @@ void mcs_v_max_written()
 {
     NRF_LOG_INFO("mcs_v_max: %d\n", (int)mcs_v_max);
     l2_set_max_speed(mcs_v_max);
+}
+
+
+static void mcs_update_led_brightness()
+{
+    // this is called if any of the LED brightness settings changes. Simply update all of them
+    l2_set_brigthness(LED_HEAD_LIGHT, mcs_dim_head);
+    l2_set_brigthness(LED_TURN_LEFT, mcs_dim_turn);
+    l2_set_brigthness(LED_TURN_RIGHT, mcs_dim_turn);
+    l2_set_brigthness(LED_BACK_LIGHT, mcs_dim_back);
 }
 
 
