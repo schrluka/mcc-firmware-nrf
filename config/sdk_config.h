@@ -46,6 +46,9 @@
 #ifdef USE_APP_CONFIG
 #include "app_config.h"
 #endif
+
+#define BLE_GATT_DB_MAX_CHARS 12
+
 // <h> Board Support 
 
 //==========================================================

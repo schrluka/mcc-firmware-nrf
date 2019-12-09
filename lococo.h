@@ -4,6 +4,9 @@
 #include <stdbool.h>
 
 
+#define LOCO3_BUF_SIZE  60
+
+
 // meta data of a lococo message
 struct lococo_tag {
     uint32_t rx_tick;       // tick at which message was received
@@ -14,6 +17,12 @@ struct lococo_tag {
 };
 
 
+extern struct lococo_tag loco3_msg_tag;
+
+extern uint8_t loco3_msg[];
+
+extern size_t loco3_msg_len;
+
 
 /**********************************************************************************************
 *   P R O T O T Y P E S                                                                      */
@@ -21,6 +30,7 @@ struct lococo_tag {
 void loco3_init(void);
 
 int loco3_get_bat_stop();
+
 
 
 #endif // __LOCOCOCO_H__

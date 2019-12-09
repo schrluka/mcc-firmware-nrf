@@ -27,9 +27,11 @@
   <ProjectSessionItem path="car-ctrl-vehicle"/>
   <ProjectSessionItem path="car-ctrl-vehicle;car-ctrl-vehicle"/>
   <ProjectSessionItem path="car-ctrl-vehicle;car-ctrl-vehicle;nRF_Segger_RTT"/>
+  <ProjectSessionItem path="car-ctrl-vehicle;car-ctrl-vehicle;nRF-BLE"/>
   <ProjectSessionItem path="car-ctrl-vehicle;car-ctrl-vehicle;nRF-BLE-Services"/>
   <ProjectSessionItem path="car-ctrl-vehicle;car-ctrl-vehicle;nRF-Libraries"/>
   <ProjectSessionItem path="car-ctrl-vehicle;car-ctrl-vehicle;nRF-Log"/>
+  <ProjectSessionItem path="car-ctrl-vehicle;car-ctrl-vehicle;System Files"/>
  </Project>
  <Register1>
   <RegisterWindow visibleNodes="CPU - Current Context/r0;CPU - Current Context/r1;CPU - Current Context/r2;CPU - Current Context/r3;CPU - Current Context/r4;CPU - Current Context/r5;CPU - Current Context/r6;CPU - Current Context/r7;CPU - Current Context/r8;CPU - Current Context/r9;CPU - Current Context/r10;CPU - Current Context/r11;CPU - Current Context/r12;CPU - Current Context/sp(r13);CPU - Current Context/lr(r14);CPU - Current Context/pc(r15);CPU - Current Context/apsr;CPU/r0;CPU/r1;CPU/r2;CPU/r3;CPU/r4;CPU/r5;CPU/r6;CPU/r7;CPU/r8;CPU/r9;CPU/r10;CPU/r11;CPU/r12;CPU/sp(r13);CPU/lr(r14);CPU/pc(r15);CPU/xpsr;CPU/msp;CPU/psp;CPU/cfbp" binaryNodes="" asciiNodes="" openNodes="CPU - Current Context" name="car-ctrl-vehicle" decimalNodes="" octalNodes="" unsignedNodes=""/>
@@ -64,26 +66,30 @@
   <Watches active="0" update="Never"/>
  </Watch4>
  <Files>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="50" useTextEdit="1" useBinaryEdit="0" left="0" path="model_car_ble_service.c" selected="0" top="36" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="315" useTextEdit="1" useBinaryEdit="0" left="0" path="sdk/components/ble/ble_services/ble_nus/ble_nus.c" selected="0" top="289" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="70" y="294" useTextEdit="1" useBinaryEdit="0" left="0" path="hw.c" selected="0" top="282" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="58" useTextEdit="1" useBinaryEdit="0" left="0" path="layer2.h" selected="0" top="34" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="23" y="77" useTextEdit="1" useBinaryEdit="0" left="0" path="hw.h" selected="0" top="33" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="32" y="39" useTextEdit="1" useBinaryEdit="0" left="0" path="layer1.h" selected="0" top="16" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="384" useTextEdit="1" useBinaryEdit="0" left="0" path="lococo.c" selected="0" top="111" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="28" useTextEdit="1" useBinaryEdit="0" left="0" path="vehicle_follower.c" selected="0" top="8" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="208" useTextEdit="1" useBinaryEdit="0" left="0" path="hw.c" selected="0" top="181" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="58" useTextEdit="1" useBinaryEdit="0" left="0" path="layer2.h" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="34" useTextEdit="1" useBinaryEdit="0" left="0" path="hw.h" selected="0" top="21" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="39" useTextEdit="1" useBinaryEdit="0" left="0" path="layer1.h" selected="0" top="16" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="36" y="380" useTextEdit="1" useBinaryEdit="0" left="0" path="lococo.c" selected="0" top="353" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="259" useTextEdit="1" useBinaryEdit="0" left="0" path="vehicle_follower.c" selected="0" top="227" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="27" useTextEdit="1" useBinaryEdit="0" left="0" path="nuts_bolts.h" selected="0" top="0" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="12749" useTextEdit="1" useBinaryEdit="0" left="0" path="config/sdk_config.h" selected="0" top="12717" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="56" y="17" useTextEdit="1" useBinaryEdit="0" left="0" path="main.h" selected="0" top="0" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="565" useTextEdit="1" useBinaryEdit="0" left="0" path="main.c" selected="1" top="625" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="13" useTextEdit="1" useBinaryEdit="0" left="0" path="model_car_ble_service.h" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="49" useTextEdit="1" useBinaryEdit="0" left="0" path="config/sdk_config.h" selected="0" top="28" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="17" useTextEdit="1" useBinaryEdit="0" left="0" path="main.h" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="565" useTextEdit="1" useBinaryEdit="0" left="0" path="main.c" selected="0" top="565" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="7" useTextEdit="1" useBinaryEdit="0" left="0" path="model_car_ble_service.h" selected="0" top="0" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="50" useTextEdit="1" useBinaryEdit="0" left="0" path="sdk/components/libraries/util/app_error.c" selected="0" top="0" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="658" useTextEdit="1" useBinaryEdit="0" left="0" path="sdk/components/softdevice/s132/headers/nrf_soc.h" selected="0" top="622" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="219" useTextEdit="1" useBinaryEdit="0" left="0" path="sdk/components/softdevice/s132/headers/ble.h" selected="0" top="187" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="347" useTextEdit="1" useBinaryEdit="0" left="0" path="sdk/components/softdevice/s132/headers/ble_gatts.h" selected="0" top="318" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="195" useTextEdit="1" useBinaryEdit="0" left="0" path="sdk/components/softdevice/s132/headers/ble_types.h" selected="0" top="153" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="5" y="199" useTextEdit="1" useBinaryEdit="0" left="0" path="layer2.c" selected="0" top="175" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="21" y="221" useTextEdit="1" useBinaryEdit="0" left="0" path="layer1.c" selected="0" top="186" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="424" useTextEdit="1" useBinaryEdit="0" left="0" path="layer2.c" selected="0" top="401" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="221" useTextEdit="1" useBinaryEdit="0" left="0" path="layer1.c" selected="0" top="186" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="149" useTextEdit="1" useBinaryEdit="0" left="0" path="advertising.c" selected="1" top="126" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="200" useTextEdit="1" useBinaryEdit="0" left="0" path="sdk/modules/nrfx/hal/nrf_pwm.h" selected="0" top="179" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="6" useTextEdit="1" useBinaryEdit="0" left="0" path="lococo.h" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="6" y="170" useTextEdit="1" useBinaryEdit="0" left="0" path="model_car_ble_service.c" selected="0" top="608" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="20" y="13" useTextEdit="1" useBinaryEdit="0" left="0" path="advertising.h" selected="0" top="0" codecName="Default"/>
  </Files>
  <ARMCrossStudioWindow activeProject="car-ctrl-vehicle" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" debugSearchFileMap="" fileDialogInitialDirectory="D:/e-/mcc/mcc-firmware-nrf" debugSearchPath="" autoConnectCapabilities="3711"/>
 </session>

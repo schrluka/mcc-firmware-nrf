@@ -16,6 +16,7 @@
 #include "nrf_sdh.h"
 #include "nrf_sdh_soc.h"
 #include "nrf_sdh_ble.h"
+#include "nrf_log.h"
 #include "ble_hci.h"
 #include "ble_advdata.h"
 #include "ble_advertising.h"
@@ -146,6 +147,7 @@ void advertising_schedule_track_id_change(uint8_t new_track_id)
 {
     // remember that the track id that we broadcast has to change once our tail reaches the position at which we received the function call
     track_change_pos = l2_get_pos() + mcs_get_dist_coil2tail();
+    NRF_LOG_INFO("changing to id %d at %d", (int)new_track_id, (int)track_change_pos);
     next_track_id = new_track_id;
     track_change_pending = true;
 }

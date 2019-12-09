@@ -211,15 +211,16 @@ void l2_poll(void *p_context)
 
     log_cnt++;
     if (log_cnt == F_EMF_CTRL/2) {
-        NRF_LOG_INFO("p:%d  v:%d v_ref:%d  dist:%d", (int)pos, (int)ramps[0].v, (int)v_ref, (int)dist);
+        // NRF_LOG_INFO("p:%d  v:%d v_ref:%d  dist:%d", (int)pos, (int)ramps[0].v, (int)v_ref, (int)dist);
         log_cnt = 0;
     }
 
     // check position dependent tasks
     for (int i=0; i<n_tasks; i++) {
-        if (p_tasks[i].start > pos)
+        if (p_tasks[i].start > pos) {
             break;  // this (and all following, because p_tasks is sorted) starts in the future
-        
+        }
+
         //printf("running task %d\n", i);
         task_run(&p_tasks[i]);
 
@@ -322,10 +323,10 @@ int l2_sched_pos_task (const struct p_task *t)
         NRF_LOG_INFO("can't schedule task: no struct left");
         return 1;
     }
-    if (t->stop <= t->start) {
+    /* that's ok, task simply runns once if (t->stop <= t->start) {
         NRF_LOG_INFO("task stop before start");
         return 2;
-    }
+    } */
     // keep tasks ordered, ascending by start position
     int ind = 0;
     for (int i=n_tasks-1; i>=0; i--) {
@@ -547,6 +548,7 @@ static void task_run(struct p_task *t)
         case T_SET_TRACK_ID:
         {
             int id = t->data;
+            NRF_LOG_INFO("l2: setting track id: %d", id);
             l2_set_track_id(id);
             break;
         }

@@ -39,7 +39,7 @@
 #define UART_TX_BUF_SIZE                32      /**< UART TX buffer size. */
 #define UART_RX_BUF_SIZE                256     /**< UART RX buffer size. */
 
-#define MAX_LEN     50
+#define MAX_LEN     LOCO3_BUF_SIZE
 
 // threshold to detect messages from a new station (this gives the min. time between to
 // stations) in ms
@@ -81,17 +81,18 @@ struct cmd {
 *   G L O B A L S                                                                            */
 
 
-
 enum state_e {ST_IDLE, ST_RX, ST_CRC_1, ST_CRC_2, ST_PROCESSING};
-
 
 volatile bool m_loco3_rx_err;  // receiver error flag
 
 // meta information of last received message
-static struct lococo_tag msg_tag = {0};
+struct lococo_tag loco3_msg_tag = {0};
 
 // if we should shutdown at next stop if battery is empty
 static int bat_stop = 0;
+
+uint8_t loco3_msg[MAX_LEN] = {0};
+size_t loco3_msg_len = 0;
 
 // LoCo3 Hardware
 static const nrf_drv_timer_t m_loco3_timer = NRF_DRV_TIMER_INSTANCE(2);
@@ -290,6 +291,7 @@ static void loco3_rx(uint8_t byte, bool err)
             process_message(msg, msg_len, tick);           
         } else { 
             //NRF_LOG_INFO("loco3: crc err");
+            loco3_msg_len = 0;
         }
         state = ST_IDLE; 
         break;
@@ -306,8 +308,6 @@ static void loco3_rx(uint8_t byte, bool err)
 static void process_message(uint8_t* p_msg, uint32_t len, uint32_t tick)
 {
     static uint32_t last_msg_tick = 0;
-    
-
     int ind = 0;
     uint32_t emf_pos = l1_get_emf_pos();
     struct p_task task = {0};
@@ -323,10 +323,10 @@ static void process_message(uint8_t* p_msg, uint32_t len, uint32_t tick)
     last_msg_tick = tick;
 
     // update meta information
-    msg_tag.delta_tick = tick - msg_tag.rx_tick;    // ticks since last message we tagged
-    msg_tag.rx_tick = tick;
-    msg_tag.delta_pos = emf_pos - msg_tag.rx_pos;
-    msg_tag.rx_pos = emf_pos;
+    loco3_msg_tag.delta_tick = tick - loco3_msg_tag.rx_tick;    // ticks since last message we tagged
+    loco3_msg_tag.rx_tick = tick;
+    loco3_msg_tag.delta_pos = emf_pos - loco3_msg_tag.rx_pos;
+    loco3_msg_tag.rx_pos = emf_pos;
 
     while (ind < len) {
         if ((len-ind) < sizeof(struct cmd)) {
@@ -344,8 +344,8 @@ static void process_message(uint8_t* p_msg, uint32_t len, uint32_t tick)
             NRF_LOG_INFO("loco3 pos: %d  delta emf: %lld", cmd_p->val.u16, emf_update);
             break;
         case CMD_OP_DIST:    // distance since last station
-            NRF_LOG_INFO("loco3 d_pos: %d, d_emf %d, d_t %d", cmd_p->val.u16, (int)msg_tag.delta_pos, (int)msg_tag.delta_tick);
-            l2_update_pos_est(&msg_tag, cmd_p->val.u16);
+            NRF_LOG_INFO("loco3 d_pos: %d, d_emf %d, d_t %d", cmd_p->val.u16, (int)loco3_msg_tag.delta_pos, (int)loco3_msg_tag.delta_tick);
+            l2_update_pos_est(&loco3_msg_tag, cmd_p->val.u16);
             break;
         case CMD_OP_V_IN:     // set ref speed to be reached at point after transmitter
             NRF_LOG_INFO("loco3 set v=%d in %d", cmd_p->val.u8[0], cmd_p->val.u8[1]);
@@ -382,7 +382,9 @@ static void process_message(uint8_t* p_msg, uint32_t len, uint32_t tick)
             task.start = l2_get_pos() + cmd_p->val.u8[0];
             task.stop = 0;  // ensures that the task runs only once
             task.data = cmd_p->val.u8[1];   // pass new track id to task struct
-            NRF_LOG_INFO("Track Id %d in %d cm", (int)cmd_p->val.u8[1], (int)cmd_p->val.u8[0]);
+            l2_sched_pos_task(&task);
+            NRF_LOG_INFO("loco3 Track Id %d in %d cm", (int)cmd_p->val.u8[1], (int)cmd_p->val.u8[0]);
+            break;
         default:
             NRF_LOG_INFO("uknown opcode %d", cmd_p->op);
             continue;
@@ -391,10 +393,12 @@ static void process_message(uint8_t* p_msg, uint32_t len, uint32_t tick)
     }
   
     // update position at which this message was received in case the vehicle position was updated by the received message
-    msg_tag.rx_pos += emf_update;
+    loco3_msg_tag.rx_pos += emf_update;
+
+    // copy message to gobal buffer (to be used by other parts, e.g. transmission via BLE)
+    memcpy(loco3_msg, p_msg, len);
+    loco3_msg_len = len;
 }
-
-
 
 
 /**@brief   Function for handling app_uart events.

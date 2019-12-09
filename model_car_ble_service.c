@@ -25,8 +25,8 @@
 
 #include "hw.h"
 #include "layer2.h"
+#include "lococo.h"
 #include "model_car_ble_service.h"
-
 
 
 
@@ -145,6 +145,7 @@ static volatile uint8_t mcs_dim_head = 255;     // brightness setting of head li
 static volatile uint8_t mcs_dim_turn = 255;     // brightness setting of turn lights 
 static volatile uint8_t mcs_dim_back = 100;     // brightness setting of back light
 
+static volatile uint8_t mcs_test = 0;
 
 // information needed to register all characteristics with the softdevice
 const struct char_config_s chars[] = {
@@ -167,6 +168,9 @@ const struct char_config_s chars[] = {
         .wr_cb=&mcs_update_led_brightness, .unit=UNIT_1, .exp=0, .fds_store=true},
     {.uuid=0xBE09, .we=true, .p_value=(void*)&mcs_dim_back, .len=sizeof(mcs_dim_back),
         .wr_cb=&mcs_update_led_brightness, .unit=UNIT_1, .exp=0, .fds_store=true},
+    /*{.uuid=0xBE0A, .we=false, .p_value=(void*)loco3_msg, .len=4, .fds_store=false},
+     {.uuid=0xBE0A, .we=true, .p_value=(void*)&mcs_test, .len=sizeof(mcs_test),
+        .unit=UNIT_1, .exp=0, .fds_store=true}, */
 };
 
 
@@ -284,6 +288,8 @@ static uint32_t char_add()
     // Add all characteristics
     for (int i=0; i<N_CHARS; i++) {
 
+        //printf("registering %04x\n", chars[i].uuid);
+
         /* not sure we need this
         if (chars[i].we) {
             // create Client Characteristic Configuration meta data
@@ -341,7 +347,7 @@ static uint32_t char_add()
             //char_md.char_props.write_wo_resp = 1; // could enabled notifications
         } else {
             BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&attr_md.write_perm);
-            }
+        }
         attr_md.vloc       = BLE_GATTS_VLOC_USER;   // tell the softdevice that we keep the variable in our global memory
         attr_md.rd_auth    = 0;
         attr_md.wr_auth    = 0;
@@ -360,8 +366,9 @@ static uint32_t char_add()
         err_code = sd_ble_gatts_characteristic_add(mcs_service_handle, &char_md,
                                                    &attr_char_value,
                                                    &(mcs_char_handles[i]));
-        if (err_code != NRF_SUCCESS)
+        if (err_code != NRF_SUCCESS) {
             return err_code;
+        }
 
         // now that the char is added we can add further descriptors to it
         if ((chars[i].p_minmax_val != NULL)) {

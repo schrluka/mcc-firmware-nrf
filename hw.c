@@ -399,8 +399,9 @@ void hw_set_led_duty(unsigned int ch, uint32_t d)
 {
     d = LED_PWM_TOP - d;    // invert duty cycle, invert flag did not work
 
-    if (ch >= NUM_LEDS)
+    if (ch >= NUM_LEDS) {
         return;
+    }
     switch (ch) {
         case 0: led_duty.channel_0 = d; break;
         case 1: led_duty.channel_1 = d; break;
